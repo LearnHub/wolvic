@@ -111,11 +111,11 @@ android {
     namespace 'com.igalia.wolvic'
     compileSdkVersion build_versions.compile_sdk
     defaultConfig {
-        applicationId "com.igalia.wolvicAVN"
+        applicationId "com.avn.wolvic"
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
         versionCode generatedVersionCode
-        versionName "1.7.3.AVN"
+        versionName "1.8.0.AVN"
         buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
         buildConfigField "Boolean", "DISABLE_CRASH_RESTART", getCrashRestartDisabled()
         buildConfigField "String", "AMO_COLLECTION", "\"fxr\""
