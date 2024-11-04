@@ -68,7 +68,8 @@ XrResult OpenXRInputSource::Initialize()
     mDeviceType = DeviceUtils::GetDeviceTypeFromSystem(systemIs6DoF);
     // Add a workaround for Monado not reporting properly device capabilities
     // https://gitlab.freedesktop.org/monado/monado/-/issues/265
-    if (mDeviceType == device::LenovoVRX) {
+    if (mDeviceType == device::LenovoVRX ||
+        mDeviceType == device::SkyworthAVN) {
         systemIs6DoF = true;
         systemDoF = DoF::IS_6DOF;
     }
