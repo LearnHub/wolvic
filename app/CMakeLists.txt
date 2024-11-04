@@ -114,6 +114,12 @@ if(OPENXR)
                 ${CMAKE_SOURCE_DIR}/../third_party/hvr/${ANDROID_ABI}/libxr_loader.so
                 ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libxr_loader.so
                 )
+    elseif (SPACES)
+        add_custom_command(TARGET native-lib POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/../third_party/spaces/libopenxr_loader.so
+                ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libopenxr_loader.so
+        )
     elseif (PICOXR)
         include_directories(
             ${CMAKE_SOURCE_DIR}/../third_party/picoxr/include
@@ -181,9 +187,15 @@ add_library(picoxr-lib SHARED IMPORTED)
 set_target_properties(picoxr-lib PROPERTIES IMPORTED_LOCATION
         ${CMAKE_SOURCE_DIR}/../third_party/picoxr/libs/android.${ANDROID_ABI}/libopenxr_loader.so)
 
-if (LYNX OR SPACES)
+if (LYNX)
     find_package(loader REQUIRED CONFIG)
     target_link_libraries(native-lib loader::openxr_loader)
+endif()
+        
+if (SPACES)
+add_library(spaces-lib SHARED IMPORTED)
+set_target_properties(spaces-lib PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_SOURCE_DIR}/../third_party/spaces/libopenxr_loader.so)
 endif()
 
 if (AOSP)

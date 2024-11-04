@@ -111,11 +111,11 @@ android {
     namespace 'com.igalia.wolvic'
     compileSdkVersion build_versions.compile_sdk
     defaultConfig {
-        applicationId "com.igalia.wolvic"
+        applicationId "com.igalia.wolvic-AVN"
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
         versionCode generatedVersionCode
-        versionName "1.7"
+        versionName "1.7.0"
         buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
         buildConfigField "Boolean", "DISABLE_CRASH_RESTART", getCrashRestartDisabled()
         buildConfigField "String", "AMO_COLLECTION", "\"fxr\""
@@ -272,7 +272,7 @@ android {
             externalNativeBuild {
                 cmake {
                     cppFlags " -DSPACES -DOPENXR -I" + file("src/openxr/cpp").absolutePath
-                    arguments "-DSPACES=ON", "-DOPENXR=ON"
+                    arguments "-DVR_SDK_LIB=spaces-lib", "-DSPACES=ON", "-DOPENXR=ON"
                 }
             }
         }
@@ -727,7 +727,7 @@ dependencies {
     lynxImplementation fileTree(dir: "${project.rootDir}/third_party/lynx", include: ['*.aar'])
 
     // Snapdragon Spaces
-    spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
+    //spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
 
     // Vission Glass
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/aliceimu/", include: ['*.aar'])
