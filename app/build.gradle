@@ -124,7 +124,7 @@ android {
         buildConfigField "Boolean", "FXA_USE_CHINA_SERVER", "false"
         buildConfigField "String[]", "SPEECH_SERVICES", "{ com.igalia.wolvic.speech.SpeechServices.MEETKAI }"
         buildConfigField "Boolean", "SUPPORTS_SYSTEM_NOTIFICATIONS", "false"
-        buildConfigField "Float", "DEFAULT_DENSITY", "1.25f"
+        buildConfigField "Float", "DEFAULT_DENSITY", "1.6f"
         buildConfigField "Float", "DEFAULT_WINDOW_DISTANCE", "0.0f"
         buildConfigField "Boolean", "ENABLE_PAGE_ZOOM", "false"
 
@@ -273,6 +273,7 @@ android {
                     arguments "-DVR_SDK_LIB=spaces-lib", "-DSPACES=ON", "-DOPENXR=ON"
                 }
             }
+            buildConfigField "Float", "DEFAULT_DENSITY", "1.6f"
         }
 
         aosp {
