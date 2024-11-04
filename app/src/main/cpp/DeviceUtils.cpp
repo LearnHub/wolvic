@@ -141,6 +141,7 @@ device::DeviceType DeviceUtils::GetDeviceTypeFromSystem(bool is6DoF) {
         deviceNamesMap.emplace("VRX", device::LenovoVRX);
         deviceNamesMap.emplace("Magic Leap 2", device::MagicLeap2);
         deviceNamesMap.emplace("Pico Neo 3", device::PicoNeo3);
+        deviceNamesMap.emplace("AVN", device::SkyworthAVN);
     }
 
     auto device = deviceNamesMap.find(model);

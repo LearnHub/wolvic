@@ -111,7 +111,7 @@ android {
     namespace 'com.igalia.wolvic'
     compileSdkVersion build_versions.compile_sdk
     defaultConfig {
-        applicationId "com.igalia.wolvic-AVN"
+        applicationId "com.igalia.wolvicAVN"
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
         versionCode generatedVersionCode

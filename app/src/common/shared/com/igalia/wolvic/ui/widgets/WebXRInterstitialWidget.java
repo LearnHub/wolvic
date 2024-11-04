@@ -125,6 +125,10 @@ public class WebXRInterstitialWidget extends UIWidget implements WidgetManagerDe
         } else if (deviceType == DeviceType.VisionGlass) {
             addController(DeviceType.VisionGlass, WebXRInterstitialController.HAND_NONE);
         }
+        else if (deviceType == DeviceType.SkyworthAVN) {
+            addController(DeviceType.SkyworthAVN, WebXRInterstitialController.HAND_LEFT);
+            addController(DeviceType.SkyworthAVN, WebXRInterstitialController.HAND_RIGHT);
+        }
         for (UIWidget controller: mControllers) {
             controller.getPlacement().parentHandle = getHandle();
             mWidgetManager.addWidget(controller);
