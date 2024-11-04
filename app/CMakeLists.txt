@@ -189,7 +189,6 @@ set_target_properties(spaces-lib PROPERTIES IMPORTED_LOCATION
         ${CMAKE_SOURCE_DIR}/../third_party/spaces/libopenxr_loader.so)
 endif()
 
-
 # Add dependency on tinygltf library, which is used to load hand models
 # from .glb assets. Since it is only a single C++ source and header,
 # we include them as native-lib's own build sources.
