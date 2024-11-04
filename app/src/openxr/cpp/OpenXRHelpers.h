@@ -10,42 +10,19 @@
 #include <openxr/openxr_reflection.h>
 #include "SystemUtils.h"
 #include "vrb/Matrix.h"
+#include "Device.h"
 
 namespace crow {
+
+// Threshold to consider a trigger value as a click
+// Used when devices don't map the click value for triggers;
+const float kClickThreshold = 0.91f;
 
 #if defined(HVR)
   const vrb::Vector kAverageHeight(0.0f, 1.6f, 0.0f);
 #else
   const vrb::Vector kAverageHeight(0.0f, 1.7f, 0.0f);
 #endif
-
-// Hand tracking was thoroughly updated on Pico version 5.7.1
-static const std::string kPicoVersionHandTrackingUpdate = "5.7.1";
-
-inline bool CompareBuildIdString(const std::string str) {
-    char buildId[128];
-    return CompareSemanticVersionStrings(GetBuildIdString(buildId), str);
-}
-
-inline std::string Fmt(const char* fmt, ...) {
-    va_list vl;
-    va_start(vl, fmt);
-    int size = std::vsnprintf(nullptr, 0, fmt, vl);
-    va_end(vl);
-
-    if (size != -1) {
-        std::unique_ptr<char[]> buffer(new char[size + 1]);
-
-        va_start(vl, fmt);
-        size = std::vsnprintf(buffer.get(), size + 1, fmt, vl);
-        va_end(vl);
-        if (size != -1) {
-            return std::string(buffer.get(), size);
-        }
-    }
-
-    throw std::runtime_error("Unexpected vsnprintf failure");
-}
 
 inline std::string GetXrVersionString(XrVersion ver) {
     return Fmt("%d.%d.%d", XR_VERSION_MAJOR(ver), XR_VERSION_MINOR(ver), XR_VERSION_PATCH(ver));
@@ -69,17 +46,6 @@ MAKE_TO_STRING_FUNC(XrEnvironmentBlendMode);
 MAKE_TO_STRING_FUNC(XrSessionState);
 MAKE_TO_STRING_FUNC(XrResult);
 MAKE_TO_STRING_FUNC(XrFormFactor);
-
-[[noreturn]] inline void Throw(std::string failureMessage, const char* originator = nullptr, const char* sourceLocation = nullptr) {
-    if (originator != nullptr) {
-        failureMessage += Fmt("\n    Origin: %s", originator);
-    }
-    if (sourceLocation != nullptr) {
-        failureMessage += Fmt("\n    Source: %s", sourceLocation);
-    }
-
-    throw std::logic_error(failureMessage);
-}
 
 [[noreturn]] inline void ThrowXrResult(XrResult res, const char* originator = nullptr, const char* sourceLocation = nullptr) {
     Throw(Fmt("XrResult failure [%s]", to_string(res)), originator, sourceLocation);
@@ -148,6 +114,20 @@ inline bool IsHandJointPositionValid(const enum XrHandJointEXT aJoint, const Han
     return pose.position.x != 0.0 && pose.position.y != 0.0 && pose.position.z != 0.0;
 #endif
     return (handJoints[aJoint].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0;
+}
+
+inline XrEnvironmentBlendMode toOpenXRBlendMode(device::BlendMode blendMode) {
+    switch (blendMode) {
+        case device::BlendMode::Opaque:
+            return XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+        case device::BlendMode::Additive:
+            return XR_ENVIRONMENT_BLEND_MODE_ADDITIVE;
+        case device::BlendMode::AlphaBlend:
+            return XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND;
+        default:
+            THROW(Fmt("Unknown blend mode %d", blendMode));
+            return XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    }
 }
 
 }  // namespace crow

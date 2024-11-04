@@ -47,9 +47,13 @@ void OpenXRExtensions::Initialize() {
 #elif PICOXR
     // Pico incorrectly advertises this extension as supported but it makes Wolvic not work.
     sSupportedExtensions.erase(XR_EXTX_OVERLAY_EXTENSION_NAME);
-#elif SPACES
-    // Spaces incorrectly advertises this extension as supported but it does not really work.
+    // Added in Pico OS 5.11.0 (5.10 ?) but due to a bug in its OpenXR runtime it prevents other profiles (eg, controllers) to be used.
     sSupportedExtensions.erase(XR_EXT_HAND_INTERACTION_EXTENSION_NAME);
+#elif SPACES
+    // Spaces incorrectly advertises these extensions as supported but they don't really work.
+    // We get no poses for aim/grip... and we get flooded by profiles change events.
+    sSupportedExtensions.erase(XR_EXT_HAND_INTERACTION_EXTENSION_NAME);
+    sSupportedExtensions.erase(XR_MSFT_HAND_INTERACTION_EXTENSION_NAME);
 #endif
 
     // Adding this check here is ugly but required to have a working build for VRX. With the current

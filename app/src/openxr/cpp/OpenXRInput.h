@@ -2,6 +2,7 @@
 
 #include "vrb/Forward.h"
 #include "OpenXRHelpers.h"
+#include "DeviceDelegate.h"
 #include "ControllerDelegate.h"
 #include "OneEuroFilter.h"
 #include "DeviceDelegate.h"
@@ -39,7 +40,7 @@ private:
   };
   typedef std::unique_ptr<KeyboardTrackingFB> KeyboardTrackingFBPtr;
 
-  OpenXRInput(XrInstance, XrSession, XrSystemProperties, XrSpace localSpace, ControllerDelegate& delegate);
+  OpenXRInput(XrInstance, XrSession, XrSystemProperties, XrSpace localSpace);
   void UpdateTrackedKeyboard(const XrFrameState& frameState, XrSpace baseSpace);
   void LoadKeyboardModel();
 
@@ -55,18 +56,22 @@ private:
   XrSpace mEyeGazeActionSpace {XR_NULL_HANDLE };
   XrSpace mLocalReferenceSpace { XR_NULL_HANDLE};
   std::unique_ptr<OneEuroFilterQuaternion> mOneEuroFilterGazeOrientation;
+  vrb::Matrix mEyeTrackingTransform;
 
 public:
-  static OpenXRInputPtr Create(XrInstance, XrSession, XrSystemProperties, XrSpace localSpace, ControllerDelegate& delegate);
-  XrResult Initialize(ControllerDelegate& delegate);
-  XrResult Update(const XrFrameState&, XrSpace baseSpace, const vrb::Matrix& head, const vrb::Vector& offsets, device::RenderMode, DeviceDelegate::PointerMode, ControllerDelegate &);
+  static OpenXRInputPtr Create(XrInstance, XrSession, XrSystemProperties, XrSpace localSpace,
+                               bool isEyeTrackingSupported, ControllerDelegate &delegate);
+  XrResult Initialize(ControllerDelegate &delegate, bool isEyeTrackingSupported);
+  XrResult Update(const XrFrameState&, XrSpace baseSpace, const vrb::Matrix& head, const vrb::Vector& offsets, device::RenderMode, DeviceDelegate::PointerMode, bool handTrackingEnabled, ControllerDelegate &);
   int32_t GetControllerModelCount() const;
   std::string GetControllerModelName(const int32_t aModelIndex) const;
   void UpdateInteractionProfile(ControllerDelegate&);
   bool AreControllersReady() const;
+  bool HasPhysicalControllersAvailable() const;
   void SetHandMeshBufferSizes(const uint32_t indexCount, const uint32_t vertexCount);
   HandMeshBufferPtr GetNextHandMeshBuffer(const int32_t aControllerIndex);
   void SetKeyboardTrackingEnabled(bool enabled);
+  bool PopulateTrackedKeyboardInfo(DeviceDelegate::TrackedKeyboardInfo& keyboardInfo);
   ~OpenXRInput();
   void InitializeEyeGaze(ControllerDelegate&);
   void InitializeEyeGazeSpaces();

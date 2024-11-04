@@ -14,6 +14,7 @@
 #include "ExternalVR.h"
 #include "Skybox.h"
 #include "SplashAnimation.h"
+#include "TrackedKeyboardRenderer.h"
 #include "Pointer.h"
 #include "Widget.h"
 #include "WidgetMover.h"
@@ -215,6 +216,8 @@ struct BrowserWorld::State {
 #elif defined(OCULUSVR) && defined(STORE_BUILD)
   bool isApplicationEntitled = false;
 #endif
+  TrackedKeyboardRendererPtr trackedKeyboardRenderer;
+  float selectThreshold;
 
   State() : paused(true), glInitialized(false), modelsLoaded(false), env(nullptr), cylinderDensity(0.0f), nearClip(0.1f),
             farClip(300.0f), activity(nullptr), windowsInitialized(false), exitImmersiveRequested(false), loaderDelay(0) {
@@ -255,6 +258,7 @@ struct BrowserWorld::State {
   void ChangeControllerFocus(const Controller& aController);
   void UpdateGazeModeState();
   void UpdateControllers(bool& aRelayoutWidgets);
+  void UpdateTrackedKeyboard();
   void SimulateBack();
   void ClearWebXRControllerData();
   void HandleControllerScroll(Controller& controller, int handle);
@@ -528,7 +532,7 @@ BrowserWorld::State::UpdateControllers(bool& aRelayoutWidgets) {
 
         const float scale = (hitPoint - device->GetHeadTransform().MultiplyPosition(vrb::Vector(0.0f, 0.0f, 0.0f))).Magnitude();
         controller.pointer->SetScale(scale + kPointerSize - controller.selectFactor * kPointerSize);
-        if (controller.selectFactor >= 1.0f)
+        if (controller.selectFactor >= selectThreshold)
           controller.pointer->SetPointerColor(kPointerColorSelected);
         else
           controller.pointer->SetPointerColor(VRBrowser::GetPointerColor());
@@ -674,6 +678,31 @@ BrowserWorld::State::UpdateControllers(bool& aRelayoutWidgets) {
       }
     }
   }
+}
+
+void
+BrowserWorld::State::UpdateTrackedKeyboard() {
+  DeviceDelegate::TrackedKeyboardInfo keyboardInfo;
+  if (!device->PopulateTrackedKeyboardInfo(keyboardInfo)) {
+    // No keyboard being tracked
+    if (trackedKeyboardRenderer != nullptr) {
+      trackedKeyboardRenderer.reset();
+      trackedKeyboardRenderer = nullptr;
+    }
+    return;
+  }
+
+  // A tracked keyboard exists, lazily create the renderer
+  if (trackedKeyboardRenderer == nullptr)
+    trackedKeyboardRenderer = TrackedKeyboardRenderer::Create(create);
+
+  // Update keyboard model if new buffer is available
+  if (keyboardInfo.modelBuffer.size() > 0)
+    trackedKeyboardRenderer->LoadKeyboardMesh(keyboardInfo.modelBuffer);
+
+  trackedKeyboardRenderer->SetVisible(keyboardInfo.isActive);
+  if (keyboardInfo.isActive)
+    trackedKeyboardRenderer->SetTransform(keyboardInfo.transform);
 }
 
 void
@@ -908,6 +937,7 @@ BrowserWorld::RegisterDeviceDelegate(DeviceDelegatePtr aDelegate) {
     m.device->SetControllerDelegate(delegate);
     m.device->SetReorientClient(this);
     m.gestures = m.device->GetGestureDelegate();
+    m.selectThreshold = m.device->GetSelectThreshold();
   } else if (previousDevice) {
     m.leftCamera = m.rightCamera = nullptr;
     m.controllers->Reset();
@@ -1065,6 +1095,11 @@ BrowserWorld::ShutdownGL() {
   if (!m.glInitialized) {
     return;
   }
+  if (m.trackedKeyboardRenderer) {
+    m.trackedKeyboardRenderer.reset();
+    m.trackedKeyboardRenderer = nullptr;
+  }
+
   if (m.loader) {
     m.loader->ShutdownGL();
   }
@@ -1155,15 +1190,24 @@ BrowserWorld::StartFrame() {
   m.controllers->SetFrameId(frameId);
   m.CheckExitImmersive();
 
+  auto createPassthroughLayerIfNeeded = [this]() {
+      if (!m.device->IsPassthroughEnabled() || !m.device->usesPassthroughCompositorLayer() || m.layerPassthrough)
+          return;
+      m.layerPassthrough = m.device->CreateLayerPassthrough();
+      m.rootPassthroughParent->AddNode(VRLayerNode::Create(m.create, m.layerPassthrough));
+  };
+
   if (m.splashAnimation) {
     TickSplashAnimation();
   } else if (m.externalVR->IsPresenting()) {
     m.CheckBackButton();
+    createPassthroughLayerIfNeeded();
     TickImmersive();
   } else {
     bool relayoutWidgets = false;
     m.UpdateGazeModeState();
     m.UpdateControllers(relayoutWidgets);
+    m.UpdateTrackedKeyboard();
     if (m.inHeadLockMode) {
       OnReorient();
       m.device->Reorient();
@@ -1173,10 +1217,7 @@ BrowserWorld::StartFrame() {
     if (relayoutWidgets) {
       UpdateVisibleWidgets();
     }
-    if (m.device->IsPassthroughEnabled() && m.device->usesPassthroughCompositorLayer() && !m.layerPassthrough) {
-      m.layerPassthrough = m.device->CreateLayerPassthrough();
-      m.rootPassthroughParent->AddNode(VRLayerNode::Create(m.create, m.layerPassthrough));
-    }
+    createPassthroughLayerIfNeeded();
     TickWorld();
     m.externalVR->PushSystemState();
   }
@@ -1703,6 +1744,11 @@ BrowserWorld::SetPointerMode(crow::DeviceDelegate::PointerMode pointerMode) {
   m.device->SetPointerMode(pointerMode);
 }
 
+void
+BrowserWorld::SetHandTrackingEnabled(bool value) {
+    m.device->SetHandTrackingEnabled(value);
+}
+
 JNIEnv*
 BrowserWorld::GetJNIEnv() const {
   ASSERT_ON_RENDER_THREAD(nullptr);
@@ -1798,6 +1844,10 @@ BrowserWorld::DrawWorld(device::Eye aEye) {
       m.device->DrawHandMesh(controller.index, *camera);
   }
 
+  // Draw tracked keyboard, if any
+  if (m.trackedKeyboardRenderer != nullptr)
+      m.trackedKeyboardRenderer->Draw(*camera);
+
   // Draw controllers
   m.drawList->Reset();
   m.rootController->Cull(*m.cullVisitor, *m.drawList);
@@ -1813,6 +1863,8 @@ void
 BrowserWorld::TickImmersive() {
   m.externalVR->SetCompositorEnabled(false);
   m.device->SetRenderMode(device::RenderMode::Immersive);
+  m.device->SetImmersiveBlendMode(m.externalVR->GetImmersiveBlendMode());
+  m.device->SetImmersiveXRSessionType(m.externalVR->GetImmersiveXRSessionType());
 
   // We must clear the passthrough layer when entering immersive mode even if we are not adding it
   // to the list of layers to render. See https://github.com/Igalia/wolvic/issues/1351
@@ -1886,7 +1938,7 @@ BrowserWorld::TickImmersive() {
 
 void
 BrowserWorld::resetPassthroughLayerIfNeeded() {
-  if (!m.layerPassthrough)
+  if (!m.layerPassthrough || (m.externalVR->IsPresenting() && m.externalVR->GetImmersiveXRSessionType() == DeviceDelegate::ImmersiveXRSessionType::AR))
     return;
 
   ASSERT(m.rootPassthroughParent->GetNodeCount() == 1);
@@ -1978,18 +2030,24 @@ BrowserWorld::CreateSkyBox(const std::string& aBasePath, const std::string& aExt
     }
     return;
   }
-#if PICOXR
-  // Pico's OpenXR runtime does not support compressed textures at the moment. Use PNGs in the
-  // meantime.
+#if defined(OCULUSVR) || defined(PICOXR)
+  bool usesSRGB = true;
+#else
+  bool usesSRGB = false;
+#endif
+
+#if OCULUSVR
+  // Meta Quest (after v69) does not support compressed textures for the cubemap.
   const std::string extension = aExtension.empty() ? ".png" : aExtension;
-  GLenum glFormat = GL_SRGB8_ALPHA8;
-#elif OCULUSVR
-  const std::string extension = aExtension.empty() ? ".ktx" : aExtension;
-  GLenum glFormat = extension == ".ktx" ? GL_COMPRESSED_SRGB8_ETC2 : GL_SRGB8_ALPHA8;
 #else
   const std::string extension = aExtension.empty() ? ".ktx" : aExtension;
-  GLenum glFormat = extension == ".ktx" ? GL_COMPRESSED_RGB8_ETC2 : GL_RGBA8;
 #endif
+  GLenum glFormat;
+  if (usesSRGB)
+    glFormat = extension == ".ktx" ? GL_COMPRESSED_SRGB8_ETC2 : GL_SRGB8_ALPHA8;
+  else
+    glFormat = extension == ".ktx" ? GL_COMPRESSED_RGB8_ETC2 : GL_RGBA8;
+
   const int32_t size = 1024;
   if (m.skybox) {
     m.skybox->SetVisible(true);
@@ -2217,6 +2275,11 @@ JNI_METHOD(void, setPointerModeNative)
             break;
     }
     crow::BrowserWorld::Instance().SetPointerMode(pointerMode);
+}
+
+JNI_METHOD(void, setHandTrackingEnabledNative)
+(JNIEnv*, jobject, jboolean value) {
+    crow::BrowserWorld::Instance().SetHandTrackingEnabled(value);
 }
 
 } // extern "C"

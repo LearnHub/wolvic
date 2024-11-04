@@ -13,6 +13,7 @@
 #include "GestureDelegate.h"
 #include "VRLayer.h"
 #include "vrb/LoaderThread.h"
+#include "vrb/Matrix.h"
 
 #include <memory>
 
@@ -45,6 +46,7 @@ public:
   virtual void SetStageSize(const float aWidth, const float aDepth) = 0;
   virtual void SetSittingToStandingTransform(const vrb::Matrix& aTransform) = 0;
   virtual void CompleteEnumeration() = 0;
+  virtual void SetBlendModes(std::vector<device::BlendMode> aBlendModes) = 0;
 };
 
 class DeviceDelegate {
@@ -57,9 +59,19 @@ public:
       APPLY,
       DISCARD
   };
+  enum class ImmersiveXRSessionType {
+      VR,
+      AR
+  };
+  struct TrackedKeyboardInfo {
+      bool isActive;
+      vrb::Matrix transform;
+      std::vector<uint8_t> modelBuffer;
+  };
   virtual device::DeviceType GetDeviceType() { return device::UnknownType; }
   virtual void SetRenderMode(const device::RenderMode aMode) = 0;
   virtual device::RenderMode GetRenderMode() = 0;
+  virtual void SetImmersiveXRSessionType(const ImmersiveXRSessionType aSessionType) { mImmersiveXrSessionType = aSessionType; }
   virtual void RegisterImmersiveDisplay(ImmersiveDisplayPtr aDisplay) = 0;
   virtual void SetImmersiveSize(const uint32_t aEyeWidth, const uint32_t aEyeHeight) {};
   virtual GestureDelegateConstPtr GetGestureDelegate() = 0;
@@ -110,7 +122,7 @@ public:
     virtual ~ReorientClient() {};
   };
   void SetReorientClient(ReorientClient* client) { mReorientClient = client; }
-  bool IsPassthroughEnabled() const { return mIsPassthroughEnabled; }
+  virtual bool IsPassthroughEnabled() const { return mIsPassthroughEnabled; }
   void TogglePassthroughEnabled() { mIsPassthroughEnabled = !mIsPassthroughEnabled; }
   virtual bool usesPassthroughCompositorLayer() const { return false; }
   virtual int32_t GetHandTrackingJointIndex(const HandTrackingJoints aJoint) { return -1; };
@@ -123,6 +135,10 @@ public:
     TRACKED_EYE
   };
   virtual void SetPointerMode(const PointerMode) {};
+  virtual void SetImmersiveBlendMode(device::BlendMode) {};
+  virtual bool PopulateTrackedKeyboardInfo(TrackedKeyboardInfo& keyboardInfo) { return false; };
+  virtual void SetHandTrackingEnabled(bool value) {};
+  virtual float GetSelectThreshold() { return 1.f; };
 
 protected:
   DeviceDelegate() {}
@@ -132,6 +148,7 @@ protected:
   bool mShouldRender { false };
   ReorientClient* mReorientClient { nullptr };
   bool mIsPassthroughEnabled { false };
+  ImmersiveXRSessionType mImmersiveXrSessionType { ImmersiveXRSessionType::VR };
 private:
   VRB_NO_DEFAULTS(DeviceDelegate)
 };

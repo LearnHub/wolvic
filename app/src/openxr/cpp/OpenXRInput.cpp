@@ -8,15 +8,17 @@
 
 namespace crow {
 
-OpenXRInputPtr OpenXRInput::Create(XrInstance instance, XrSession session, XrSystemProperties properties, XrSpace localSpace, ControllerDelegate& delegate)
+OpenXRInputPtr
+OpenXRInput::Create(XrInstance instance, XrSession session, XrSystemProperties properties,
+                    XrSpace localSpace, bool isEyeTrackingSupported, ControllerDelegate &delegate)
 {
-  auto input = std::unique_ptr<OpenXRInput>(new OpenXRInput(instance, session, properties, localSpace, delegate));
-  if (XR_FAILED(input->Initialize(delegate)))
+  auto input = std::unique_ptr<OpenXRInput>(new OpenXRInput(instance, session, properties, localSpace));
+  if (XR_FAILED(input->Initialize(delegate, isEyeTrackingSupported)))
     return nullptr;
   return input;
 }
 
-OpenXRInput::OpenXRInput(XrInstance instance, XrSession session, XrSystemProperties properties, XrSpace localSpace, ControllerDelegate& delegate)
+OpenXRInput::OpenXRInput(XrInstance instance, XrSession session, XrSystemProperties properties, XrSpace localSpace)
     : mInstance(instance)
     , mSession(session)
     , mSystemProperties(properties)
@@ -25,7 +27,7 @@ OpenXRInput::OpenXRInput(XrInstance instance, XrSession session, XrSystemPropert
   VRB_ERROR("OpenXR systemName: %s", properties.systemName);
 }
 
-XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
+XrResult OpenXRInput::Initialize(ControllerDelegate &delegate, bool isEyeTrackingSupported)
 {
   mActionSet = OpenXRActionSet::Create(mInstance, mSession);
 
@@ -58,8 +60,7 @@ XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
     }
   }
 
-  bool supportsEyeGazeExtension = OpenXRExtensions::IsExtensionSupported(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
-  if (supportsEyeGazeExtension)
+  if (isEyeTrackingSupported)
     InitializeEyeGaze(delegate);
 
   XrSessionActionSetsAttachInfo attachInfo { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -67,7 +68,7 @@ XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
   attachInfo.actionSets = &mActionSet->ActionSet();
   RETURN_IF_XR_FAILED(xrAttachSessionActionSets(mSession, &attachInfo));
 
-  if (supportsEyeGazeExtension)
+  if (isEyeTrackingSupported)
     InitializeEyeGazeSpaces();
 
   UpdateInteractionProfile(delegate);
@@ -75,7 +76,7 @@ XrResult OpenXRInput::Initialize(ControllerDelegate& delegate)
   return XR_SUCCESS;
 }
 
-XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, const vrb::Matrix& head, const vrb::Vector& offsets, device::RenderMode renderMode, DeviceDelegate::PointerMode pointerMode, ControllerDelegate& delegate)
+XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, const vrb::Matrix& head, const vrb::Vector& offsets, device::RenderMode renderMode, DeviceDelegate::PointerMode pointerMode, bool handTrackingEnabled, ControllerDelegate& delegate)
 {
   XrActiveActionSet activeActionSet {
     mActionSet->ActionSet(), XR_NULL_PATH
@@ -89,7 +90,7 @@ XrResult OpenXRInput::Update(const XrFrameState& frameState, XrSpace baseSpace, 
   bool usingEyeTracking = pointerMode == DeviceDelegate::PointerMode::TRACKED_EYE && updateEyeGaze(frameState, head, delegate);
 
   for (auto& input : mInputSources) {
-    input->Update(frameState, baseSpace, head, offsets, renderMode, pointerMode, usingEyeTracking, delegate);
+    input->Update(frameState, baseSpace, head, offsets, renderMode, pointerMode, usingEyeTracking, handTrackingEnabled, mEyeTrackingTransform, delegate);
   }
 
   // Update tracked keyboard
@@ -144,6 +145,14 @@ OpenXRInputMapping* OpenXRInput::GetActiveInputMapping() const
   }
 
   return nullptr;
+}
+
+bool OpenXRInput::HasPhysicalControllersAvailable() const {
+    for (auto& input : mInputSources) {
+        if (input->HasPhysicalControllersAvailable())
+            return true;
+    }
+    return false;
 }
 
 void OpenXRInput::SetHandMeshBufferSizes(const uint32_t indexCount, const uint32_t vertexCount) {
@@ -228,7 +237,8 @@ void OpenXRInput::UpdateTrackedKeyboard(const XrFrameState& frameState, XrSpace 
       keyboardTrackingFB->space = XR_NULL_HANDLE;
     }
     bzero(&keyboardTrackingFB->description, sizeof(keyboardTrackingFB->description));
-    keyboardTrackingFB->modelBuffer.resize(0);
+    keyboardTrackingFB->modelBuffer.clear();
+    keyboardTrackingFB->modelBufferChanged = false;
   }
 
   // Bail-out if no keyboard exists
@@ -270,6 +280,35 @@ void OpenXRInput::SetKeyboardTrackingEnabled(bool enabled) {
     keyboardTrackingFB.reset();
     keyboardTrackingFB = nullptr;
   }
+}
+
+bool OpenXRInput::PopulateTrackedKeyboardInfo(DeviceDelegate::TrackedKeyboardInfo& keyboardInfo) {
+  if (keyboardTrackingFB == nullptr)
+    return false;
+
+  if (keyboardTrackingFB->description.trackedKeyboardId == 0 || keyboardTrackingFB->space == nullptr ||
+      keyboardTrackingFB->modelBuffer.size() == 0) {
+    return false;
+  }
+
+  // Only report keyboard as active (be shown to the user) if it is connected and actively tracked.
+  keyboardInfo.isActive =
+    (keyboardTrackingFB->description.flags & XR_KEYBOARD_TRACKING_CONNECTED_BIT_FB) != 0 &&
+    (keyboardTrackingFB->location.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) != 0 &&
+    (keyboardTrackingFB->location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT) != 0;
+
+  // Copy the model buffer over only if it has changed
+  if (keyboardTrackingFB->modelBufferChanged) {
+    keyboardInfo.modelBuffer = keyboardTrackingFB->modelBuffer;
+    keyboardTrackingFB->modelBufferChanged = false;
+  } else {
+    keyboardInfo.modelBuffer.resize(0);
+  }
+
+  keyboardInfo.transform = XrPoseToMatrix(keyboardTrackingFB->location.pose);
+  keyboardInfo.transform.TranslateInPlace(kAverageHeight);
+
+  return true;
 }
 
 OpenXRInput::~OpenXRInput() {
@@ -335,8 +374,7 @@ bool OpenXRInput::updateEyeGaze(XrFrameState frameState, const vrb::Matrix& head
     vrb::Quaternion gazeOrientation(gazeLocation.pose.orientation.x, gazeLocation.pose.orientation.y, gazeLocation.pose.orientation.z, gazeLocation.pose.orientation.w);
     float* filteredOrientation = mOneEuroFilterGazeOrientation->filter(frameState.predictedDisplayTime, gazeOrientation.Data());
     gazeOrientation = {filteredOrientation[0], filteredOrientation[1], filteredOrientation[2], filteredOrientation[3]};
-    delegate.SetTransform(0, vrb::Matrix::Rotation(gazeOrientation).Translate(gazePosition));
-    delegate.SetImmersiveBeamTransform(0, vrb::Matrix::Identity());
+    mEyeTrackingTransform = vrb::Matrix::Rotation(gazeOrientation).Translate(gazePosition);
 
     return true;
 }

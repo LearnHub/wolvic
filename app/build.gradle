@@ -179,13 +179,11 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig getUseDebugSigningOnRelease() ? debug.signingConfig : release.signingConfig
-            buildConfigField 'String', 'PROPS_ENDPOINT', '"https://igalia.github.io/wolvic/props.json"'
             buildConfigField "String", "MK_API_KEY", "\"${getMKApiKey()}\""
         }
         debug {
             applicationIdSuffix getDevApplicationIdSuffix()
             pseudoLocalesEnabled true
-            buildConfigField 'String', 'PROPS_ENDPOINT', '"https://igalia.github.io/wolvic/props.json"'
             buildConfigField "String", "MK_API_KEY", "\"\""
         }
     }
@@ -213,7 +211,7 @@ android {
             externalNativeBuild {
                 cmake {
                     cppFlags "-DOCULUSVR -DOPENXR"
-                    arguments "-DVR_SDK_LIB=oculusvr-lib", "-DVR_SDK_EXTRA_LIB=ovrplatform-lib", "-DOCULUSVR=ON", "-DOPENXR=ON"
+                    arguments "-DVR_SDK_EXTRA_LIB=ovrplatform-lib", "-DOCULUSVR=ON", "-DOPENXR=ON"
                 }
             }
             manifestPlaceholders = [ headtrackingRequired:"false", permissionToRemove:"android.permission.RECEIVE_BOOT_COMPLETED" ]
@@ -359,6 +357,7 @@ android {
                     arguments "-DGECKO=ON"
                 }
             }
+            buildConfigField 'String', 'PROPS_ENDPOINT', '"https://igalia.github.io/wolvic/props.json"'
         }
 
         chromium {
@@ -371,6 +370,7 @@ android {
                 }
             }
             buildConfigField "Boolean", "ENABLE_PAGE_ZOOM", "true"
+            buildConfigField 'String', 'PROPS_ENDPOINT', '"https://igalia.github.io/wolvic/props-chromium.json"'
         }
 
         webkit {
@@ -380,15 +380,6 @@ android {
         // Stores flavor
         generic {
             dimension "store"
-        }
-
-        appLab {
-            dimension "store"
-            externalNativeBuild {
-                cmake {
-                    cppFlags "-DSTORE_BUILD", "-DMETA_APP_ID=4812663595466206"
-                }
-            }
         }
 
         metaStore {
@@ -430,10 +421,22 @@ android {
         if (backend == 'webkit' && !isWebKitAvailable())
             variant.setIgnore(true);
 
-        // MetaStore and AppLab only apply to oculusvr builds.
-        if ((store == 'metaStore' || store == "appLab") && !platform.startsWith('oculusvr'))
+        // MetaStore only apply to oculusvr builds.
+        if (store == 'metaStore' && !platform.startsWith('oculusvr'))
             variant.setIgnore(true);
         
+    }
+
+    androidComponents {
+        onVariants(selector().all()) { variant ->
+            def platform = variant.productFlavors.get(0).second
+            def store = variant.productFlavors.get(3).second
+
+            // Adjust the applicationId so it matches what the store expects.
+            if (platform == "visionglass" && store == "generic") {
+                variant.applicationId.set("com.igalia.wolvic.world.visionglass")
+            }
+        }
     }
 
     sourceSets {
@@ -693,6 +696,8 @@ dependencies {
     implementation deps.work.runtime
     implementation deps.work.runtime_ktx
 
+    // OpenXR standard loader
+    implementation 'org.khronos.openxr:openxr_loader_for_android:1.0.34'
 
     // Testing
     androidTestImplementation deps.atsl.runner
@@ -714,6 +719,9 @@ dependencies {
     implementation 'net.lingala.zip4j:zip4j:2.11.5'
     implementation 'org.apache.commons:commons-math3:3.6.1'
 
+    // AOSP
+    aospImplementation 'androidx.games:games-activity:3.0.5'
+
     // HVR
     hvrImplementation fileTree(dir: "${project.rootDir}/third_party/hvr", include: ['*.jar'])
     hvrImplementation 'com.huawei.agconnect:agconnect-core-harmony:1.1.0.300'
@@ -723,13 +731,10 @@ dependencies {
     hvrImplementation 'com.huawei.hms:location:6.2.0.300'
     hvrImplementation 'com.huawei.hms:push:6.5.0.300'
 
-    // Lynx
-    lynxImplementation fileTree(dir: "${project.rootDir}/third_party/lynx", include: ['*.aar'])
-
     // Snapdragon Spaces
     //spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
 
-    // Vission Glass
+    // Vision Glass
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/aliceimu/", include: ['*.aar'])
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/hvr", include: ['*.jar'])
     visionglassImplementation 'com.huawei.agconnect:agconnect-core-harmony:1.1.0.300'
@@ -773,7 +778,7 @@ dependencies {
     // chromium
     if (isChromiumAvailable()) {
         chromiumImplementation fileTree(dir: gradle."localProperties.chromium_aar", include: ['*.aar'])
-        chromiumImplementation 'androidx.fragment:fragment:1.8.2'
+        chromiumImplementation 'androidx.fragment:fragment:1.8.4'
     }
 
     // webkit

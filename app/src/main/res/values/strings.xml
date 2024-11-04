@@ -685,6 +685,10 @@
          haptic feedback of the remote controller. -->
     <string name="controller_options_haptic_feedback">Haptic Feedback</string>
 
+    <!-- This string is used to label the switch that allow the user to enable/disable
+         the hand-tracking capabilities. -->
+    <string name="controller_options_handtracking">Hand Tracking</string>
+
     <!-- This string describes what the 'Reset' button in the developer options does which is
          restore all the developer settings to their default value. -->
     <string name="developer_options_reset">Reset Developer Settings</string>
@@ -996,7 +1000,8 @@
     <!-- This string is used when the list of files that can be uploaded is empty. -->
     <string name="upload_list_empty">No files available for upload</string>
 
-    <!-- This string labels a button that is used to approve an action. -->
+    <!-- This string labels the back button. In some places, it is used to approve an action.
+         In other places, it is used to cancel an action. -->
     <string name="back_button">Back</string>
 
     <!-- This string is displayed in a dialog after an application crash. -->
@@ -1995,6 +2000,10 @@
 the Select` button. When clicked it closes all the previously selected tabs -->
     <string name="tabs_close_selected">Close tabs</string>
 
+    <!-- This string is displayed in a button on the header of the tabs dialog, after selection mode is enabled with
+the Select` button. When clicked it bookmarks all the previously selected tabs -->
+    <string name="tabs_bookmark_selected">Bookmark tabs</string>
+
     <!-- This string is displayed in a button on the header of the tabs dialog.
      When clicked it closes all the available tabs -->
     <string name="tabs_close_all">Close all</string>
@@ -2564,5 +2573,9 @@ the Select` button. When clicked it closes all the previously selected tabs -->
     <string name="developer_options_pointer_mode_tracked_eye">Eye Tracking</string>
     <string name="eye_tracking_permission_title">Eye Tracking Permissions</string>
     <string name="eye_tracking_permission_message">Enabling eye tracking for browsing the web poses significant privacy risks. This technology captures where and how long a user looks at specific parts of a webpage, revealing intimate details about their interests and emotional reactions. Advertisers and third parties can exploit this data for intrusive marketing and profiling. Moreover, eye movement patterns could infer sensitive information such as medical conditions, cognitive states, or personal habits. Therefore, it is crucial to consider the privacy implications before granting access to eye tracking information to webpages.</string>
+
+    <!-- Shown when starting the application if the OS version is not compatible -->
+    <string name="incompatible_os_version_title">Incompatible OS Version</string>
+    <string name="incompatible_os_version_message">Your OS version is not supported. This version of Wolvic requires at least version %1$s</string>
 
 </resources>

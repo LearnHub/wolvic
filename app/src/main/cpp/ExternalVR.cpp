@@ -10,6 +10,7 @@
 #include "vrb/Quaternion.h"
 #include "vrb/Vector.h"
 #include "moz_external_vr.h"
+#include "Assertions.h"
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -254,6 +255,8 @@ mozilla::gfx::VRControllerType GetVRControllerTypeByDevice(device::DeviceType aT
       result = mozilla::gfx::VRControllerType::PicoNeo3;
       break;
     case device::Pico4x:
+    case device::Pico4U:
+      // FIXME: Gecko does not support Pico4U device yet, so let's use a similar one for WebXR.
       result = mozilla::gfx::VRControllerType::Pico4;
       break;
     case device::MagicLeap2:
@@ -384,6 +387,28 @@ ExternalVR::SetStageSize(const float aWidth, const float aDepth) {
 void
 ExternalVR::SetSittingToStandingTransform(const vrb::Matrix& aTransform) {
   memcpy(&(m.system.displayState.sittingToStandingTransform), aTransform.Data(), sizeof(m.system.displayState.sittingToStandingTransform));
+}
+
+void
+ExternalVR::SetBlendModes(std::vector<device::BlendMode> aBlendModes) {
+  memset(&m.system.displayState.blendModes, (int) mozilla::gfx::VRDisplayBlendMode::_empty, sizeof(m.system.displayState.blendModes));
+  int i = 0;
+  for (const auto& blendMode : aBlendModes) {
+    switch (blendMode) {
+      case device::BlendMode::Opaque:
+        m.system.displayState.blendModes[i++] = mozilla::gfx::VRDisplayBlendMode::Opaque;
+        break;
+      case device::BlendMode::Additive:
+        m.system.displayState.blendModes[i++] = mozilla::gfx::VRDisplayBlendMode::Additive;
+        break;
+      case device::BlendMode::AlphaBlend:
+        m.system.displayState.blendModes[i++] = mozilla::gfx::VRDisplayBlendMode::AlphaBlend;
+        break;
+      default:
+        THROW(Fmt("Unknown blend mode", (int) blendMode));
+        break;
+    }
+  }
 }
 
 void
@@ -690,6 +715,34 @@ ExternalVR::StopPresenting() {
   m.system.displayState.presentingGeneration++;
   PushSystemState();
   m.waitingForExit = true;
+}
+
+device::BlendMode
+ExternalVR::GetImmersiveBlendMode() const {
+  ASSERT(IsPresenting());
+  switch (m.browser.blendMode) {
+    case mozilla::gfx::VRDisplayBlendMode::_empty:
+    case mozilla::gfx::VRDisplayBlendMode::Opaque:
+      return device::BlendMode::Opaque;
+    case mozilla::gfx::VRDisplayBlendMode::Additive:
+      return device::BlendMode::Additive;
+    case mozilla::gfx::VRDisplayBlendMode::AlphaBlend:
+      return device::BlendMode::AlphaBlend;
+  }
+}
+
+DeviceDelegate::ImmersiveXRSessionType
+ExternalVR::GetImmersiveXRSessionType() const {
+  ASSERT(IsPresenting());
+  switch (m.browser.sessionType) {
+    case mozilla::gfx::ImmersiveXRSessionType::VR:
+      return DeviceDelegate::ImmersiveXRSessionType::VR;
+    case mozilla::gfx::ImmersiveXRSessionType::AR:
+      return DeviceDelegate::ImmersiveXRSessionType::AR;
+    default:
+      THROW(Fmt("Unknown immersive session type %d", (int) m.browser.sessionType));
+      return DeviceDelegate::ImmersiveXRSessionType::VR;
+  }
 }
 
 ExternalVR::ExternalVR(): m(State::Instance()) {

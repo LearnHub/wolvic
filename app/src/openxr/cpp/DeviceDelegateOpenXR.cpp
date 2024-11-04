@@ -122,6 +122,10 @@ struct DeviceDelegateOpenXR::State {
   float furthestHitDistance { near };
   OpenXRActionSetPtr eyeActionSet;
   PointerMode pointerMode { PointerMode::TRACKED_POINTER };
+  std::vector<XrEnvironmentBlendMode> blendModes;
+  XrEnvironmentBlendMode immersiveBlendMode { XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
+  bool isEyeTrackingSupported { false };
+  bool handTrackingEnabled { true };
 
   bool IsPositionTrackingSupported() {
       CHECK(system != XR_NULL_SYSTEM_ID);
@@ -213,12 +217,17 @@ struct DeviceDelegateOpenXR::State {
 
     if (OpenXRExtensions::IsExtensionSupported(XR_EXT_HAND_INTERACTION_EXTENSION_NAME))
         extensions.push_back(XR_EXT_HAND_INTERACTION_EXTENSION_NAME);
+    else if (OpenXRExtensions::IsExtensionSupported(XR_MSFT_HAND_INTERACTION_EXTENSION_NAME))
+        extensions.push_back(XR_MSFT_HAND_INTERACTION_EXTENSION_NAME);
 
     if (OpenXRExtensions::IsExtensionSupported(XR_EXT_VIEW_CONFIGURATION_DEPTH_RANGE_EXTENSION_NAME))
         extensions.push_back(XR_EXT_VIEW_CONFIGURATION_DEPTH_RANGE_EXTENSION_NAME);
 
     if (OpenXRExtensions::IsExtensionSupported(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
         extensions.push_back(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME);
+
+    if (OpenXRExtensions::IsExtensionSupported(XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME))
+        extensions.push_back(XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME);
 
     java = {XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
     java.applicationVM = javaContext->vm;
@@ -304,6 +313,7 @@ struct DeviceDelegateOpenXR::State {
         VRB_ERROR("OpenXR runtime reports 0 layers. There must be at least 1");
 
     mHandTrackingSupported = handTrackingProperties.supportsHandTracking;
+    VRBrowser::SetHandTrackingSupported(mHandTrackingSupported);
     VRB_LOG("OpenXR runtime %s hand tracking", mHandTrackingSupported ? "does support" : "doesn't support");
     VRB_LOG("OpenXR runtime %s FB passthrough extension", passthroughProperties.supportsPassthrough ? "does support" : "doesn't support");
 
@@ -335,7 +345,6 @@ struct DeviceDelegateOpenXR::State {
       VRB_LOG("OpenXR runtime supports XR_FB_render_model");
     }
 
-    bool isEyeTrackingSupported { false };
     if (OpenXRExtensions::IsExtensionSupported(XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME)) {
         isEyeTrackingSupported = eyeGazeProperties.supportsEyeGazeInteraction;
         VRB_LOG("OpenXR runtime %s support XR_EXT_eye_gaze_interaction", isEyeTrackingSupported ? "does" : "doesn't");
@@ -427,7 +436,7 @@ struct DeviceDelegateOpenXR::State {
       CHECK_XRCMD(xrEnumerateEnvironmentBlendModes(instance, system, viewConfigurationType, 0, &count, nullptr));
       CHECK(count > 0);
 
-      std::vector<XrEnvironmentBlendMode> blendModes(count);
+      blendModes.resize(count);
       CHECK_XRCMD(xrEnumerateEnvironmentBlendModes(instance, system, viewConfigurationType, count, &count, blendModes.data()));
       VRB_LOG("OpenXR: %d supported blend mode%c", count, count > 1 ? 's' : ' ');
       for (const auto& blendMode : blendModes)
@@ -454,6 +463,27 @@ struct DeviceDelegateOpenXR::State {
     immersiveDisplay->SetDeviceName(systemProperties.systemName);
     immersiveDisplay->SetEyeResolution(viewConfig.front().recommendedImageRectWidth, viewConfig.front().recommendedImageRectHeight);
     immersiveDisplay->SetSittingToStandingTransform(vrb::Matrix::Translation(kAverageHeight));
+    auto toDeviceBlendModes = [](std::vector<XrEnvironmentBlendMode> aOpenXRBlendModes) {
+        std::vector<device::BlendMode> deviceBlendModes;
+        for (const auto& blendMode : aOpenXRBlendModes) {
+            switch (blendMode) {
+            case XR_ENVIRONMENT_BLEND_MODE_OPAQUE:
+                deviceBlendModes.push_back(device::BlendMode::Opaque);
+                break;
+            case XR_ENVIRONMENT_BLEND_MODE_ADDITIVE:
+                deviceBlendModes.push_back(device::BlendMode::Additive);
+                break;
+            case XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND:
+                deviceBlendModes.push_back(device::BlendMode::AlphaBlend);
+                break;
+            default:
+                VRB_ERROR("Unsupported blend mode %d", blendMode);
+                break;
+            }
+        }
+        return deviceBlendModes;
+    };
+    immersiveDisplay->SetBlendModes(toDeviceBlendModes(blendModes));
     immersiveDisplay->CompleteEnumeration();
   }
 
@@ -713,6 +743,7 @@ struct DeviceDelegateOpenXR::State {
       // Pico4x default is 72hz, but has an experimental setting to set it to 90hz. If the setting
       // is disabled we'll select 72hz which is the only one advertised by OpenXR in that case.
       case device::Pico4x:
+      case device::Pico4U:
         suggestedRefreshRate = 90.0;
         break;
       case device::OculusQuest:
@@ -801,8 +832,13 @@ struct DeviceDelegateOpenXR::State {
     // Invoke the callback. We only clear it if the load has started. Otherwise we will retry later.
     // This happens for example if a profile with no 3D models like hand interaction is loaded on
     // start. If we clear the callback it won't ever be called in case the user grabs a controller.
-    if (controllersReadyCallback())
+    if (controllersReadyCallback()) {
+        if (input->HasPhysicalControllersAvailable()) {
+            VRB_LOG("DeviceDelegateOpenXR -- Physical controllers available");
+            VRBrowser::OnControllersAvailable();
+        }
         controllersReadyCallback = nullptr;
+    }
   }
 
   void UpdateInteractionProfile() {
@@ -1173,7 +1209,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
     offsets.y() = -0.05;
     offsets.z() = 0.05;
 #endif
-    m.input->Update(frameState, m.localSpace, head, offsets, m.renderMode, m.pointerMode, *m.controller);
+    m.input->Update(frameState, m.localSpace, head, offsets, m.renderMode, m.pointerMode, m.handTrackingEnabled, *m.controller);
   }
 
   if (m.reorientRequested && m.renderMode == device::RenderMode::StandAlone) {
@@ -1212,6 +1248,16 @@ DeviceDelegateOpenXR::BindEye(const device::Eye aWhich) {
     layer->SetCurrentEye(aWhich);
 }
 
+bool
+DeviceDelegateOpenXR::IsPassthroughEnabled() const {
+    if (m.renderMode == device::RenderMode::StandAlone)
+        return mIsPassthroughEnabled;
+
+    return (m.immersiveBlendMode != XR_ENVIRONMENT_BLEND_MODE_OPAQUE) ||
+            (m.passthroughStrategy->usesCompositorLayer() &&
+             mImmersiveXrSessionType == DeviceDelegate::ImmersiveXRSessionType::AR);
+};
+
 void
 DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   if (!m.vrReady) {
@@ -1231,8 +1277,16 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   std::vector<const XrCompositionLayerBaseHeader*>& layers = m.frameEndLayers;
   layers.clear();
 
+  bool shouldUsePassthrough = IsPassthroughEnabled();
+  auto pickEnvironmentBlendMode = [this, shouldUsePassthrough](device::RenderMode renderMode) {
+      if (renderMode == device::RenderMode::Immersive)
+          return shouldUsePassthrough ? m.immersiveBlendMode : m.defaultBlendMode;
+
+      return mIsPassthroughEnabled ? m.passthroughBlendMode : m.defaultBlendMode;
+  };
+
   // This limit is valid at least for Pico and Meta.
-  auto submitEndFrame = [&layers, displayTime, session = m.session, blendMode = mIsPassthroughEnabled ? m.passthroughBlendMode : m.defaultBlendMode, distance = m.furthestHitDistance]() {
+  auto submitEndFrame = [&layers, displayTime, session = m.session, blendMode = pickEnvironmentBlendMode(m.renderMode), distance = m.furthestHitDistance]() {
       static int i = 0;
       XrFrameEndInfo frameEndInfo{XR_TYPE_FRAME_END_INFO};
       frameEndInfo.displayTime = displayTime;
@@ -1263,7 +1317,7 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   XrPosef reorientPose = MatrixToXrPose(GetReorientTransform());
 
   // Add skybox or passthrough layer
-  if (mIsPassthroughEnabled) {
+  if (shouldUsePassthrough) {
       if (m.passthroughLayer && m.passthroughLayer->IsDrawRequested() && m.IsPassthroughLayerReady()) {
           m.passthroughLayer->Update(m.localSpace, reorientPose, XR_NULL_HANDLE);
           layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&m.passthroughLayer->xrCompositionLayer));
@@ -1558,6 +1612,10 @@ void DeviceDelegateOpenXR::SetHitDistance(const float distance) {
   m.furthestHitDistance = std::max(distance, m.furthestHitDistance);
 }
 
+bool DeviceDelegateOpenXR::PopulateTrackedKeyboardInfo(DeviceDelegate::TrackedKeyboardInfo& keyboardInfo) {
+  return m.input->PopulateTrackedKeyboardInfo(keyboardInfo);
+}
+
 void
 DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
   // Reset reorientation after Enter VR
@@ -1607,7 +1665,7 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
 
   m.passthroughStrategy->initializePassthrough(m.session);
 
-  m.input = OpenXRInput::Create(m.instance, m.session, m.systemProperties, m.localSpace, *m.controller.get());
+  m.input = OpenXRInput::Create(m.instance, m.session, m.systemProperties, m.localSpace, m.isEyeTrackingSupported, *m.controller.get());
   ProcessEvents();
   if (m.controllersCreatedCallback) {
     m.controllersCreatedCallback();
@@ -1624,13 +1682,6 @@ DeviceDelegateOpenXR::EnterVR(const crow::BrowserEGLContext& aEGLContext) {
     if (m.handMeshProperties) {
       m.handMeshRenderer = HandMeshRendererGeometry::Create(create);
       m.input->SetHandMeshBufferSizes(m.handMeshProperties->indexCount, m.handMeshProperties->vertexCount);
-    } else {
-#if defined(PICOXR)
-      // Due to unreliable hand-tracking orientation data on Pico devices running system
-      // versions earlier than 5.7.1, we use the Spheres strategy.
-      if (CompareBuildIdString(kPicoVersionHandTrackingUpdate))
-        m.handMeshRenderer = HandMeshRendererSpheres::Create(create);
-#endif
     }
 
     if (!m.handMeshRenderer)
@@ -1692,6 +1743,18 @@ DeviceDelegateOpenXR::~DeviceDelegateOpenXR() { m.Shutdown(); }
 
 void DeviceDelegateOpenXR::SetPointerMode(const DeviceDelegate::PointerMode mode) {
   m.pointerMode = mode;
+}
+
+void DeviceDelegateOpenXR::SetImmersiveBlendMode(device::BlendMode mode) {
+  m.immersiveBlendMode = toOpenXRBlendMode(mode);
+}
+
+void DeviceDelegateOpenXR::SetHandTrackingEnabled(bool value) {
+  m.handTrackingEnabled = value;
+}
+
+float DeviceDelegateOpenXR::GetSelectThreshold() {
+  return kClickThreshold;
 }
 
 } // namespace crow

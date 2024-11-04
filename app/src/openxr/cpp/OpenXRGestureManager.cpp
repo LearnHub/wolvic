@@ -29,11 +29,6 @@ OpenXRGestureManager::handFacesHead(const vrb::Matrix &hand, const vrb::Matrix &
     // For the hand we take the Y axis because that corresponds to head's Z axis when
     // the hand is in upright position facing head (the gesture we want to detect).
     auto handDirection = hand.MultiplyDirection({0, 1, 0}).Normalize();
-#ifdef PICOXR
-    // Axis are inverted in Pico system versions prior to 5.7.1
-    if (CompareBuildIdString(kPicoVersionHandTrackingUpdate))
-        handDirection = hand.MultiplyDirection({0, 0, -1});
-#endif
     auto headDirection = head.MultiplyDirection({0, 0, -1}).Normalize();
 
     // First check that vector directions align
@@ -106,10 +101,7 @@ OpenXRGestureManagerFBHandTrackingAim::aimPose(const XrTime predictedDisplayTime
 
 bool
 OpenXRGestureManagerFBHandTrackingAim::systemGestureDetected(const vrb::Matrix& hand, const vrb::Matrix& head) const {
-#ifdef PICOXR
-    // Pico does not correctly implement the SYSTEM_GESTURE_BIT_FB flags.
-    return handFacesHead(hand, head) && !hasAim();
-#elif LYNX
+#if LYNX
     // Lynx does not correctly implement the SYSTEM_GESTURE_BIT_FB and XR_HAND_TRACKING_AIM_VALID_BIT_FB flags (it's always active)
     return handFacesHead(hand, head);
 #else

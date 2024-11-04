@@ -42,15 +42,11 @@ wolvic$ git clone git@github.com:Igalia/wolvic-third-parties.git third_party
 
 This repo is only available to Igalia members. If you have access to the relevant SDK but not this repo, you can manually place them here:
 
- - `third_party/ovr_mobile/` for Oculus (should contain a `VrApi` folder)
- - ~`third_party/OVRPlatformSDK/` for Oculus (should contain a `Android` and `include` folders)~ (deprecated)
- - `third_party/ovr_openxr_mobile_sdk/` for Oculus (should contain an `OpenXR` folder)
+ - `third_party/OVRPlatformSDK/` for Oculus (should contain a `Android` and `Include` folders)
  - `third_party/hvr/` for Huawei (should contain  `arm64-v8a`, `armeabi-v7a` and `include` folders)
  - `third_party/wavesdk/` for Vive (should contain a `build` folder, among other things)
- - `third_party/picoxr` [Pico OpenXR Mobile SDK](https://developer-global.pico-interactive.com/sdk?deviceId=1&platformId=3&itemId=11) (should contain `include` and `libs` folders, among other things that are not necessary for Wolvic)
- - `third_party/lynx` [for Lynx](https://portal.lynx-r.com)(should contain a `loader-release.aar` file)
+ - `third_party/picoxr` [Pico OpenXR Mobile SDK](https://developer-global.pico-interactive.com/sdk?deviceId=1&platformId=3&itemId=11) (should contain `libs` folders, among other things that are not necessary for Wolvic)
  - `third_party/spaces` [for Snapdragon Spaces](https://spaces.qualcomm.com/)(should contain `libopenxr_loader.aar`)
- - `third_party/OpenXR-SDK/` [OpenXR-SDK](https://github.com/KhronosGroup/OpenXR-SDK) (should contain an `include` folder)
  - `third_party/aliceimu/` for [Huawei Vision Glass](https://consumer.huawei.com/cn/wearables/vision-glass/) (should contain an `.aar` file with the IMU library for the glasses)
 
 The [repo in `third_party`](https://github.com/Igalia/wolvic-third-parties) can be updated like so:
@@ -160,8 +156,8 @@ Restart Wolvic XR and close and re-open the WebIDE page.
 
 - When using the native debugger you can ignore the first SIGSEGV: address access protected stop in GV thread. It's not a crash; you can click *Resume* to continue debugging.
 - On some platforms such as Oculus Go the native debugger stops on each input event. You can set this LLDB post-attach command in Android Studio to fix the problem: `pro hand -p true -s false SIGILL`
-- You can use `adb shell am start -a android.intent.action.VIEW -d "https://aframe.io" com.igalia.wolvic/com.igalia.wolvic.VRBrowserActivity` to load a URL from the command line
-- You can use `adb shell am start -a android.intent.action.VIEW  -n com.igalia.wolvic/com.igalia.wolvic.VRBrowserActivity -e homepage "https://example.com"` to override the homepage
+- You can use `adb shell am start -a android.intent.action.VIEW -d "https://aframe.io" com.igalia.wolvic/com.igalia.wolvic.VersionCheckActivity` to load a URL from the command line
+- You can use `adb shell am start -a android.intent.action.VIEW  -n com.igalia.wolvic/com.igalia.wolvic.VersionCheckActivity -e homepage "https://example.com"` to override the homepage
 - You can use `adb shell setprop debug.oculus.enableVideoCapture 1` to record a video on the Oculus Go. Remember to run `adb shell setprop debug.oculus.enableVideoCapture 0` to stop recording the video.
     - You can also record videos on the Oculus Go by exiting to the system library, and from the Oculus tray menu (toggle with the Oculus button on the controller): **`Sharing > Record Video`**
 - You can set `disableCrashRestart=true` in the gradle `user.properties` to disable app relaunch on crash.

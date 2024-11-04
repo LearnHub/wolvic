@@ -121,6 +121,7 @@ public interface WidgetManagerDelegate {
     boolean isWebXRIntersitialHidden();
     boolean isWebXRPresenting();
     boolean isPermissionGranted(@NonNull String permission);
+    boolean isLaunchImmersive();
     void requestPermission(String originator, @NonNull String permission, OriginatorType originatorType, WSession.PermissionDelegate.Callback aCallback);
     boolean canOpenNewWindow();
     void openNewWindow(String uri);
@@ -137,6 +138,11 @@ public interface WidgetManagerDelegate {
     AppServicesProvider getServicesProvider();
     KeyboardWidget getKeyboard();
     void setPointerMode(@PointerMode int mode);
+    void setHandTrackingEnabled(boolean value);
+    boolean isHandTrackingEnabled();
     void checkEyeTrackingPermissions(@NonNull EyeTrackingCallback callback);
     boolean isEyeTrackingSupported();
+    boolean isHandTrackingSupported();
+    boolean areControllersAvailable();
+
 }
