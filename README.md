@@ -4,6 +4,7 @@
   - In order to build GeckoView (and Firefox) for Android a Linux Machine is required (it doesn't build under Windows. "./mach bootstrap" and "./mach build" fails to work correctly).
   - Buidling Wolvic in Android Studio under Windows works fine.
   - Building GeckoView is required just once.
+  - In "moz_external_vr.h" check "static const int32_t kVRExternalVersion = 20;". This is the protocol version used to exchange data with the engine for WebXR and needs to be the same in Wolvic and Gecko.
 
 
 -------------------
