@@ -504,7 +504,7 @@ namespace crow {
     };
 
 
-    const std::array<OpenXRInputMapping, 14> OpenXRInputMappings {
+    const std::array<OpenXRInputMapping, 15> OpenXRInputMappings {
             OculusTouch, OculusTouch2, MetaQuestTouchPro, Pico4U, Pico4x, Pico4xOld, PicoNeo3, Hvr6DOF, Hvr3DOF, LenovoVRX, MagicLeap2, MetaTouchPlus, SkyworthAVN, HandInteraction, MSFTHandInteraction
     };
 
