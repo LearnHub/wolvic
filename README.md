@@ -1,4 +1,14 @@
+------------------------
+# Importan Information:
+------------------------
+  - In order to build GeckoView (and Firefox) for Android a Linux Machine is required (it doesn't build under Windows. "./mach bootstrap" and "./mach build" fails to work correctly).
+  - Buidling Wolvic in Android Studio under Windows works fine.
+  - Building GeckoView is required just once.
+
+
+-------------------
 # Wolvic XR Browser
+-------------------
 
 The goal of the Wolvic project is to create a full-featured browser exclusively AR and VR headsets.
 
