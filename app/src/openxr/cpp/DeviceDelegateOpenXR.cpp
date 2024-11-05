@@ -128,6 +128,7 @@ struct DeviceDelegateOpenXR::State {
   XrEnvironmentBlendMode immersiveBlendMode { XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
   bool isEyeTrackingSupported { false };
   bool handTrackingEnabled { true };
+  bool shouldUsePassthrough { false };
 
   bool IsPositionTrackingSupported() {
       CHECK(system != XR_NULL_SYSTEM_ID);
@@ -887,6 +888,7 @@ DeviceDelegateOpenXR::SetRenderMode(const device::RenderMode aMode) {
 
   m.UpdateClockLevels();
   m.UpdateDisplayRefreshRate();
+  UpdatePassthrough();
 
   // Reset reorient when exiting or entering immersive
   m.reorientMatrix = vrb::Matrix::Identity();
@@ -1029,12 +1031,11 @@ DeviceDelegateOpenXR::ProcessEvents() {
         auto result = m.passthroughStrategy->handleEvent(*ev);
         if (result == OpenXRPassthroughStrategy::HandleEventResult::NonRecoverableError) {
             if (m.passthroughLayer->IsValid())
-                m.passthroughLayer->Destroy();
+                m.passthroughLayer = nullptr;
         } else if (result == OpenXRPassthroughStrategy::HandleEventResult::NeedsReinit) {
             // TODO: return a bool with the initialization result?
             m.passthroughStrategy->initializePassthrough(m.session);
-            vrb::RenderContextPtr ctx = m.context.lock();
-            m.passthroughLayer->Init(m.javaContext->env, m.session, ctx);
+            m.passthroughLayer->Init(m.session);
         }
         break;
       }
@@ -1279,17 +1280,15 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   std::vector<const XrCompositionLayerBaseHeader*>& layers = m.frameEndLayers;
   layers.clear();
 
-  bool shouldUsePassthrough = IsPassthroughEnabled();
-  auto pickEnvironmentBlendMode = [this, shouldUsePassthrough](device::RenderMode renderMode) {
+  auto pickEnvironmentBlendMode = [this](device::RenderMode renderMode) {
       if (renderMode == device::RenderMode::Immersive)
-          return shouldUsePassthrough ? m.immersiveBlendMode : m.defaultBlendMode;
+          return m.shouldUsePassthrough ? m.immersiveBlendMode : m.defaultBlendMode;
 
       return mIsPassthroughEnabled ? m.passthroughBlendMode : m.defaultBlendMode;
   };
 
   // This limit is valid at least for Pico and Meta.
   auto submitEndFrame = [&layers, displayTime, session = m.session, blendMode = pickEnvironmentBlendMode(m.renderMode), distance = m.furthestHitDistance]() {
-      static int i = 0;
       XrFrameEndInfo frameEndInfo{XR_TYPE_FRAME_END_INFO};
       frameEndInfo.displayTime = displayTime;
       frameEndInfo.environmentBlendMode = blendMode;
@@ -1319,12 +1318,9 @@ DeviceDelegateOpenXR::EndFrame(const FrameEndMode aEndMode) {
   XrPosef reorientPose = MatrixToXrPose(GetReorientTransform());
 
   // Add skybox or passthrough layer
-  if (shouldUsePassthrough) {
-      if (m.passthroughLayer && m.passthroughLayer->IsDrawRequested() && m.IsPassthroughLayerReady()) {
-          m.passthroughLayer->Update(m.localSpace, reorientPose, XR_NULL_HANDLE);
+  if (m.shouldUsePassthrough) {
+      if (m.passthroughLayer && m.IsPassthroughLayerReady())
           layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&m.passthroughLayer->xrCompositionLayer));
-          m.passthroughLayer->ClearRequestDraw();
-      }
   } else if (m.cubeLayer && m.cubeLayer->IsLoaded() && m.cubeLayer->IsDrawRequested()) {
     m.cubeLayer->Update(m.localSpace, reorientPose, XR_NULL_HANDLE);
     for (uint32_t i = 0; i < m.cubeLayer->HeaderCount(); ++i) {
@@ -1509,24 +1505,21 @@ DeviceDelegateOpenXR::CreateLayerEquirect(const VRLayerPtr &aSource) {
   return result;
 }
 
-VRLayerPassthroughPtr
+void
 DeviceDelegateOpenXR::CreateLayerPassthrough() {
   assert(m.passthroughStrategy);
-  if (!m.layersEnabled || !m.passthroughStrategy->usesCompositorLayer()) {
-    return nullptr;
+  if (!m.layersEnabled || m.passthroughLayer || !m.passthroughStrategy->usesCompositorLayer()) {
+    return;
   }
 
-  if (m.passthroughLayer != nullptr) {
-    m.passthroughLayer->Destroy();
-  }
-  VRLayerPassthroughPtr result = VRLayerPassthrough::Create();
-  m.passthroughLayer = m.passthroughStrategy->createLayerIfSupported(result);
+  m.passthroughLayer = m.passthroughStrategy->createLayerIfSupported();
+  VRB_LOG("--- Passthrough layer created ---");
   assert(m.passthroughLayer);
 
   assert(m.session != XR_NULL_HANDLE);
-  vrb::RenderContextPtr context = m.context.lock();
-  m.passthroughLayer->Init(m.javaContext->env, m.session, context);
-  return result;
+  m.passthroughLayer->Init(m.session);
+
+  UpdatePassthrough();
 }
 
 bool
@@ -1545,11 +1538,6 @@ DeviceDelegateOpenXR::DeleteLayer(const VRLayerPtr& aLayer) {
   if (m.equirectLayer && m.equirectLayer->layer == aLayer) {
     m.equirectLayer->Destroy();
     m.equirectLayer = nullptr;
-    return;
-  }
-  if (m.passthroughLayer && m.passthroughLayer->layer == aLayer) {
-    m.passthroughLayer->Destroy();
-    m.passthroughLayer = nullptr;
     return;
   }
   for (int i = 0; i < m.uiLayers.size(); ++i) {
@@ -1755,7 +1743,10 @@ void DeviceDelegateOpenXR::SetPointerMode(const DeviceDelegate::PointerMode mode
 }
 
 void DeviceDelegateOpenXR::SetImmersiveBlendMode(device::BlendMode mode) {
+  auto prevImmersiveBlendMode = m.immersiveBlendMode;
   m.immersiveBlendMode = toOpenXRBlendMode(mode);
+  if (prevImmersiveBlendMode != m.immersiveBlendMode)
+    UpdatePassthrough();
 }
 
 void DeviceDelegateOpenXR::SetHandTrackingEnabled(bool value) {
@@ -1764,6 +1755,24 @@ void DeviceDelegateOpenXR::SetHandTrackingEnabled(bool value) {
 
 float DeviceDelegateOpenXR::GetSelectThreshold() {
   return kClickThreshold;
+}
+
+void
+DeviceDelegateOpenXR::TogglePassthroughEnabled() {
+  DeviceDelegate::TogglePassthroughEnabled();
+  UpdatePassthrough();
+}
+
+void
+DeviceDelegateOpenXR::UpdatePassthrough() {
+  m.shouldUsePassthrough = IsPassthroughEnabled();
+  if (!m.IsPassthroughLayerReady())
+    return;
+
+  if (m.shouldUsePassthrough)
+    OpenXRExtensions::sXrPassthroughLayerResumeFB(m.passthroughLayer->GetPassthroughLayerHandle());
+  else
+    OpenXRExtensions::sXrPassthroughLayerPauseFB(m.passthroughLayer->GetPassthroughLayerHandle());
 }
 
 } // namespace crow
