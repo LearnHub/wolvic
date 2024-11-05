@@ -81,7 +81,7 @@ XrResult OpenXRInputSource::Initialize()
           mMappings.back().controllerType = mDeviceType;
           continue;
       }
-      if ((mDeviceType != mapping.controllerType) || (systemDoF != mapping.systemDoF))
+      if (mDeviceType != mapping.controllerType)
           continue;
       mMappings.push_back(mapping);
     }
@@ -426,7 +426,7 @@ XrResult OpenXRInputSource::SuggestBindings(SuggestedBindings& bindings) const
 
         // FIXME: reenable this once MagicLeap OS v1.8 is released as it has a fix for this.
         // Otherwise the hand interaction profile is not properly used.
-        if (OpenXRExtensions::IsExtensionSupported(XR_EXT_HAND_INTERACTION_EXTENSION_NAME) && (DeviceUtils::GetDeviceTypeFromSystem(true) != device::MagicLeap2)) {
+        if (OpenXRExtensions::IsExtensionSupported(XR_EXT_HAND_INTERACTION_EXTENSION_NAME) && (DeviceUtils::GetDeviceTypeFromSystem() != device::MagicLeap2)) {
             RETURN_IF_XR_FAILED(CreateBinding(mapping.path, mPinchPoseAction, mSubactionPathName + "/" + kPinchPose, bindings));
             RETURN_IF_XR_FAILED(CreateBinding(mapping.path, mPokePoseAction, mSubactionPathName + "/" + kPokePose, bindings));
         }
