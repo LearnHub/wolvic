@@ -47,6 +47,8 @@
 
 namespace crow {
 
+    const float SUPERSAMPLING_FACTOR = 1.6f;
+
 struct HandMeshPropertiesMSFT {
     uint32_t indexCount = 0;
     uint32_t vertexCount = 0;
@@ -518,8 +520,8 @@ struct DeviceDelegateOpenXR::State {
     CHECK(viewConfig.size() > 0);
 
     if (w == 0 || h == 0) {
-      w = viewConfig.front().recommendedImageRectWidth;
-      h = viewConfig.front().recommendedImageRectHeight;
+      w = viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_FACTOR;
+      h = viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_FACTOR;
     }
 
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
