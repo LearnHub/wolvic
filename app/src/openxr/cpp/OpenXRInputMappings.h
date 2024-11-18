@@ -412,7 +412,6 @@ namespace crow {
 
     const OpenXRInputMapping SkyworthAVN {
             "/interaction_profiles/oculus/touch_controller",
-            IS_6DOF,
             "CVR655_left.obj",
             "CVR655_right.obj",
             device::SkyworthAVN,
@@ -438,52 +437,6 @@ namespace crow {
 
     const OpenXRInputMapping MagicLeap2 {
             "/interaction_profiles/ml/ml2_controller",
-            "",
-            "vr_controller_magicleap2.obj",
-            device::MagicLeap2,
-            std::vector<OpenXRInputProfile> { "magicleap-one", "generic-trigger-squeeze-touchpad" },
-            std::vector<OpenXRButton> {
-                    { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ClickValue, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Both, ControllerDelegate::Button::BUTTON_APP, true },
-                    { OpenXRButtonType::Trackpad, kPathTrackpad, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
-            },
-            std::vector<OpenXRAxis> {
-                    { OpenXRAxisType::Trackpad, "input/trackpad/force",  OpenXRHandFlags::Both },
-            },
-            std::vector<OpenXRHaptic> {
-                    { kPathHaptic, OpenXRHandFlags::Both },
-            },
-    };
-
-    const OpenXRInputMapping SkyworthAVN {
-            "/interaction_profiles/oculus/touch_controller",
-            IS_6DOF,
-            "CVR655_left.obj",
-            "CVR655_right.obj",
-            device::SkyworthAVN,
-            std::vector<OpenXRInputProfile> { "oculus-touch-v3", "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
-            std::vector<OpenXRButton> {
-                    { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Value, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::ButtonX, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
-                    { OpenXRButtonType::ButtonY, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left,  },
-                    { OpenXRButtonType::ButtonA, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
-                    { OpenXRButtonType::ButtonB, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
-                    { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
-            },
-            std::vector<OpenXRAxis> {
-                    { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },
-            },
-            std::vector<OpenXRHaptic> {
-                    { kPathHaptic, OpenXRHandFlags::Both },
-            },
-    };
-
-    const OpenXRInputMapping MagicLeap2 {
-            "/interaction_profiles/ml/ml2_controller",
-            IS_6DOF,
             "",
             "vr_controller_magicleap2.obj",
             device::MagicLeap2,
