@@ -33,14 +33,14 @@
                 android:layout_alignParentRight="true"
                 android:layout_centerVertical="true"
                 android:scaleType="fitCenter"
-                android:src="@drawable/controller_vrx_left"
+                android:src="@drawable/controller_655128_left"
                 tools:ignore="RtlHardcoded" />
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentRight="true"
-                android:layout_marginRight="52dp"
-                android:layout_marginTop="44dp"
+                android:layout_marginRight="49dp"
+                android:layout_marginTop="50dp"
                 android:paddingBottom="16dp"
                 android:rotation="-30"
                 android:layout_alignParentTop="true"
@@ -75,7 +75,7 @@
                 android:layout_centerVertical="true"
                 android:scaleType="fitCenter"
                 android:scaleX="-1"
-                android:src="@drawable/controller_vrx_left"
+                android:src="@drawable/controller_655128_left"
                 tools:ignore="RtlHardcoded" />
         </RelativeLayout>
 
