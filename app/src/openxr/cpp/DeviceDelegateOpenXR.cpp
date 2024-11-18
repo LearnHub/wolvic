@@ -47,7 +47,8 @@
 
 namespace crow {
 
-    const float SUPERSAMPLING_FACTOR = 1.6f;
+    const float SUPERSAMPLING_2D_FACTOR = 1.6f;
+    const float SUPERSAMPLING_XR_FACTOR = 1.0f;
 
 struct HandMeshPropertiesMSFT {
     uint32_t indexCount = 0;
@@ -464,7 +465,9 @@ struct DeviceDelegateOpenXR::State {
     CHECK(viewConfig.size() > 0);
 
     immersiveDisplay->SetDeviceName(systemProperties.systemName);
-    immersiveDisplay->SetEyeResolution(viewConfig.front().recommendedImageRectWidth, viewConfig.front().recommendedImageRectHeight);
+    immersiveDisplay->SetEyeResolution(
+            viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_XR_FACTOR,
+            viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_XR_FACTOR);
     immersiveDisplay->SetSittingToStandingTransform(vrb::Matrix::Translation(kAverageHeight));
     auto toDeviceBlendModes = [](std::vector<XrEnvironmentBlendMode> aOpenXRBlendModes) {
         std::vector<device::BlendMode> deviceBlendModes;
@@ -521,8 +524,8 @@ struct DeviceDelegateOpenXR::State {
     CHECK(viewConfig.size() > 0);
 
     if (w == 0 || h == 0) {
-      w = viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_FACTOR;
-      h = viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_FACTOR;
+      w = viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_2D_FACTOR;
+      h = viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_2D_FACTOR;
     }
 
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
