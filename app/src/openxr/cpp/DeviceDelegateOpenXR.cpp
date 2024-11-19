@@ -47,6 +47,9 @@
 
 namespace crow {
 
+    const float SUPERSAMPLING_2D_FACTOR = 1.6f;
+    const float SUPERSAMPLING_XR_FACTOR = 1.2f;
+
 struct HandMeshPropertiesMSFT {
     uint32_t indexCount = 0;
     uint32_t vertexCount = 0;
@@ -462,7 +465,9 @@ struct DeviceDelegateOpenXR::State {
     CHECK(viewConfig.size() > 0);
 
     immersiveDisplay->SetDeviceName(systemProperties.systemName);
-    immersiveDisplay->SetEyeResolution(viewConfig.front().recommendedImageRectWidth, viewConfig.front().recommendedImageRectHeight);
+    immersiveDisplay->SetEyeResolution(
+            viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_XR_FACTOR,
+            viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_XR_FACTOR);
     immersiveDisplay->SetSittingToStandingTransform(vrb::Matrix::Translation(kAverageHeight));
     auto toDeviceBlendModes = [](std::vector<XrEnvironmentBlendMode> aOpenXRBlendModes) {
         std::vector<device::BlendMode> deviceBlendModes;
@@ -509,7 +514,7 @@ struct DeviceDelegateOpenXR::State {
   }
 
   XrSwapchainCreateInfo GetSwapChainCreateInfo(uint32_t w = 0, uint32_t h = 0) {
-#if OCULUSVR
+#if OCULUSVR || SPACES
     const int64_t colorFormat = GL_SRGB8_ALPHA8;
 #else
     const int64_t colorFormat = GL_RGBA8;
@@ -519,8 +524,8 @@ struct DeviceDelegateOpenXR::State {
     CHECK(viewConfig.size() > 0);
 
     if (w == 0 || h == 0) {
-      w = viewConfig.front().recommendedImageRectWidth;
-      h = viewConfig.front().recommendedImageRectHeight;
+      w = viewConfig.front().recommendedImageRectWidth * SUPERSAMPLING_2D_FACTOR;
+      h = viewConfig.front().recommendedImageRectHeight * SUPERSAMPLING_2D_FACTOR;
     }
 
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
@@ -1064,7 +1069,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
     return;
   }
 
-#if OCULUSVR || PICOXR
+#if OCULUSVR || PICOXR || SPACES
   // Fix brigthness issue.
   glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 #endif

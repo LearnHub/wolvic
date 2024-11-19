@@ -111,11 +111,11 @@ android {
     namespace 'com.igalia.wolvic'
     compileSdkVersion build_versions.compile_sdk
     defaultConfig {
-        applicationId "com.igalia.wolvic"
+        applicationId "com.avn.wolvic"
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
         versionCode generatedVersionCode
-        versionName "1.8"
+        versionName "1.8.0.AVN"
         buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
         buildConfigField "Boolean", "DISABLE_CRASH_RESTART", getCrashRestartDisabled()
         buildConfigField "String", "AMO_COLLECTION", "\"fxr\""
@@ -124,7 +124,7 @@ android {
         buildConfigField "Boolean", "FXA_USE_CHINA_SERVER", "false"
         buildConfigField "String[]", "SPEECH_SERVICES", "{ com.igalia.wolvic.speech.SpeechServices.MEETKAI }"
         buildConfigField "Boolean", "SUPPORTS_SYSTEM_NOTIFICATIONS", "false"
-        buildConfigField "Float", "DEFAULT_DENSITY", "1.25f"
+        buildConfigField "Float", "DEFAULT_DENSITY", "1.6f"
         buildConfigField "Float", "DEFAULT_WINDOW_DISTANCE", "0.0f"
         buildConfigField "Boolean", "ENABLE_PAGE_ZOOM", "false"
 
@@ -270,9 +270,10 @@ android {
             externalNativeBuild {
                 cmake {
                     cppFlags " -DSPACES -DOPENXR -I" + file("src/openxr/cpp").absolutePath
-                    arguments "-DSPACES=ON", "-DOPENXR=ON"
+                    arguments "-DVR_SDK_LIB=spaces-lib", "-DSPACES=ON", "-DOPENXR=ON"
                 }
             }
+            buildConfigField "Float", "DEFAULT_DENSITY", "1.6f"
         }
 
         aosp {
@@ -733,7 +734,7 @@ dependencies {
     hvrImplementation 'com.huawei.hms:push:6.5.0.300'
 
     // Snapdragon Spaces
-    spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
+    //spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
 
     // Vision Glass
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/aliceimu/", include: ['*.aar'])

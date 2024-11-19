@@ -1,7 +1,7 @@
 # Built application files
 *.apk
 *.ap_
-*.aar
+#*.aar
 
 # Files for the ART/Dalvik VM
 *.dex
@@ -65,7 +65,7 @@ openwnn/.externalNativeBuild
 oculussig_*
 
 # Third Party SDKs
-third_party
+#third_party
 gvr-android-sdk
 user.properties*
 

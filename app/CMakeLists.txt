@@ -114,6 +114,12 @@ if(OPENXR)
                 ${CMAKE_SOURCE_DIR}/../third_party/hvr/${ANDROID_ABI}/libxr_loader.so
                 ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libxr_loader.so
                 )
+    elseif (SPACES)
+        add_custom_command(TARGET native-lib POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/../third_party/spaces/libopenxr_loader.so
+                ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libopenxr_loader.so
+        )
     elseif (PICOXR)
         add_custom_command(TARGET native-lib POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy
@@ -177,10 +183,11 @@ add_library(picoxr-lib SHARED IMPORTED)
 set_target_properties(picoxr-lib PROPERTIES IMPORTED_LOCATION
         ${CMAKE_SOURCE_DIR}/../third_party/picoxr/libs/android.${ANDROID_ABI}/libopenxr_loader.so)
 
-if(SPACES)
-    find_package(loader REQUIRED CONFIG)
-    target_link_libraries(native-lib PRIVATE loader::openxr_loader)
-endif ()
+if (SPACES)
+add_library(spaces-lib SHARED IMPORTED)
+set_target_properties(spaces-lib PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_SOURCE_DIR}/../third_party/spaces/libopenxr_loader.so)
+endif()
 
 # Add dependency on tinygltf library, which is used to load hand models
 # from .glb assets. Since it is only a single C++ source and header,
