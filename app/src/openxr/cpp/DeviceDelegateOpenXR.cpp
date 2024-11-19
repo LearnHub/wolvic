@@ -48,7 +48,7 @@
 namespace crow {
 
     const float SUPERSAMPLING_2D_FACTOR = 1.6f;
-    const float SUPERSAMPLING_XR_FACTOR = 1.2f;
+    const float SUPERSAMPLING_XR_FACTOR = 1.0f;
 
 struct HandMeshPropertiesMSFT {
     uint32_t indexCount = 0;
