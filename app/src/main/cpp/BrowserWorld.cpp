@@ -2014,7 +2014,7 @@ BrowserWorld::CreateSkyBox(const std::string& aBasePath, const std::string& aExt
   bool usesSRGB = false;
 #endif
 
-#if OCULUSVR
+#if OCULUSVR || SPACES
   // Meta Quest (after v69) does not support compressed textures for the cubemap.
   const std::string extension = aExtension.empty() ? ".png" : aExtension;
 #else

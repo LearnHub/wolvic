@@ -1433,7 +1433,7 @@ DeviceDelegateOpenXR::CreateLayerQuad(const VRLayerSurfacePtr& aMoveLayer) {
 VRLayerCylinderPtr
 DeviceDelegateOpenXR::CreateLayerCylinder(int32_t aWidth, int32_t aHeight,
                                             VRLayerSurface::SurfaceType aSurfaceType) {
-  if (!m.layersEnabled) {
+  if (m.layersEnabled) {
     return nullptr;
   }
 
@@ -1445,7 +1445,7 @@ DeviceDelegateOpenXR::CreateLayerCylinder(int32_t aWidth, int32_t aHeight,
 
 VRLayerCylinderPtr
 DeviceDelegateOpenXR::CreateLayerCylinder(const VRLayerSurfacePtr& aMoveLayer) {
-  if (!m.layersEnabled) {
+  if (m.layersEnabled) {
     return nullptr;
   }
 
@@ -1468,7 +1468,7 @@ DeviceDelegateOpenXR::CreateLayerCylinder(const VRLayerSurfacePtr& aMoveLayer) {
 
 VRLayerCubePtr
 DeviceDelegateOpenXR::CreateLayerCube(int32_t aWidth, int32_t aHeight, GLint aInternalFormat) {
-  if (!m.layersEnabled) {
+  if (m.layersEnabled) {
     return nullptr;
   }
   if (m.cubeLayer) {
@@ -1485,7 +1485,7 @@ DeviceDelegateOpenXR::CreateLayerCube(int32_t aWidth, int32_t aHeight, GLint aIn
 
 VRLayerEquirectPtr
 DeviceDelegateOpenXR::CreateLayerEquirect(const VRLayerPtr &aSource) {
-  if (!m.layersEnabled) {
+  if (m.layersEnabled) {
     return nullptr;
   }
 
@@ -1511,7 +1511,7 @@ DeviceDelegateOpenXR::CreateLayerEquirect(const VRLayerPtr &aSource) {
 void
 DeviceDelegateOpenXR::CreateLayerPassthrough() {
   assert(m.passthroughStrategy);
-  if (!m.layersEnabled || m.passthroughLayer || !m.passthroughStrategy->usesCompositorLayer()) {
+  if (m.layersEnabled || m.passthroughLayer || !m.passthroughStrategy->usesCompositorLayer()) {
     return;
   }
 
