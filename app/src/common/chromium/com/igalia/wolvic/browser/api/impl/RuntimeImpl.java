@@ -176,6 +176,7 @@ public class RuntimeImpl implements WRuntime {
         if (mRuntimeSettings.getGlMsaaLevel() == 0)
             CommandLine.getInstance().appendSwitchWithValue("webgl-antialiasing-mode", "none");
         CommandLine.getInstance().appendSwitchWithValue("webgl-msaa-sample-count", MSAALevelAsString);
+        CommandLine.getInstance().appendSwitch("force-device-scale-factor=2.0");
     }
 
     private void initBrowserProcess(Context context) {
