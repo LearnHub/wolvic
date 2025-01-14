@@ -7,7 +7,9 @@
 namespace crow {
 
 #define ANDROID_OS_BUILD_ID "ro.build.display.id"
-#define ANDROID_OS_MODEL_ID "ro.product.vendor.model"
+//#define ANDROID_OS_MODEL_ID "ro.product.vendor.model"
+//AVN VARIANT
+#define ANDROID_OS_MODEL_ID "ro.product.model"
 
 // Get the Build ID of the current Android system.
 inline const char* GetBuildIdString(char* out) {

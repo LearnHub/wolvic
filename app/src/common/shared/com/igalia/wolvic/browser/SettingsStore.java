@@ -95,7 +95,7 @@ public class SettingsStore {
     // The DPI is calculated so the default window has a logical width of 1024 CSS pixels.
     // For a density of 1.0, the DPI is 128 and the texture matches the logical size of the webpage.
     // For a density of 1.5, the DPI of 192 and the resolution of the texture is twice the world size of the window.
-    public final static int DISPLAY_DPI_BASE = 128;
+    public final static int DISPLAY_DPI_BASE = 36;
     public final static int DISPLAY_DPI_DEFAULT = (int) (DISPLAY_DENSITY_DEFAULT * DISPLAY_DPI_BASE);
     public final static int DISPLAY_DPI_MIN = 70;
     public final static int DISPLAY_DPI_MAX = 300;

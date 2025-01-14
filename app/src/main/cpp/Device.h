@@ -54,6 +54,7 @@ const DeviceType MagicLeap2 = 17;
 const DeviceType MetaQuest3 = 18;
 const DeviceType VisionGlass = 19;
 const DeviceType Pico4U = 20;
+const DeviceType SkyworthAVN = 21;
 
 enum class TargetRayMode : uint8_t { Gaze, TrackedPointer, Screen };
 

@@ -643,7 +643,7 @@ public class WRuntimeSettings {
     boolean mFontInflationEnabled = false;
     boolean mInputAutoZoom = true;
     boolean mDoubleTapZooming = true;
-    int mGlMsaaLevel = 0;
+    int mGlMsaaLevel = 2;
     String mLogLevel = "Debug";
     boolean mConsoleServiceToLogcat = true;
     boolean mDevToolsConsoleToLogcat = true;
