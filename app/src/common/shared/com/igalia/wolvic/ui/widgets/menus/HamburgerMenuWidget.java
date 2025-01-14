@@ -202,12 +202,18 @@ public class HamburgerMenuWidget extends UIWidget implements
                         }).build());
 
                 String url = activeSession.getCurrentUri();
-                boolean showAddons = (URLUtil.isHttpsUrl(url) || URLUtil.isHttpUrl(url)) && !mWidgetManager.getFocusedWindow().isLibraryVisible();
+                boolean showAddons = (URLUtil.isHttpsUrl(url) || URLUtil.isHttpUrl(url)) && !mWidgetManager.getFocusedWindow().isNativeContentVisible();
                 final SessionState tab = ComponentsAdapter.get().getSessionStateForSession(activeSession);
                 if (tab != null && showAddons) {
                     final List<WebExtensionState> extensions = ComponentsAdapter.get().getSortedEnabledExtensions();
                     extensions.forEach((extension) -> {
                         if (!extension.getAllowedInPrivateBrowsing() && activeSession.isPrivateMode()) {
+                            return;
+                        }
+
+                        // Do not show builtin extensions in the hamburger menu. As they are inside the APK, their URLs
+                        // always start with "resource://android".
+                        if (extension.getUrl().startsWith("resource://android")) {
                             return;
                         }
 

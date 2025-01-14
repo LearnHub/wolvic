@@ -5,12 +5,11 @@
 
 package com.igalia.wolvic.ui.widgets;
 
-import android.animation.Animator;
-import android.animation.ValueAnimator;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
@@ -27,15 +26,15 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.animation.AccelerateDecelerateInterpolator;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.databinding.DataBindingUtil;
 import androidx.databinding.ObservableBoolean;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.preference.PreferenceManager;
 
-import com.igalia.wolvic.BuildConfig;
 import com.igalia.wolvic.R;
 import com.igalia.wolvic.VRBrowserActivity;
 import com.igalia.wolvic.VRBrowserApplication;
@@ -63,8 +62,11 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
-public class TrayWidget extends UIWidget implements WidgetManagerDelegate.UpdateListener, DownloadsManager.DownloadsListener, ConnectivityReceiver.Delegate {
+public class TrayWidget extends UIWidget implements WidgetManagerDelegate.UpdateListener,
+        DownloadsManager.DownloadsListener, ConnectivityReceiver.Delegate,
+        SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final int ICON_ANIMATION_DURATION = 200;
 
@@ -121,9 +123,11 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
                 (VRBrowserActivity)getContext(),
                 ViewModelProvider.AndroidViewModelFactory.getInstance(((VRBrowserActivity) getContext()).getApplication()))
                 .get(TrayViewModel.class);
-        mTrayViewModel.getIsVisible().observe((VRBrowserActivity) getContext(), mIsVisibleObserver);
 
+        mTrayViewModel.getIsVisible().observe((VRBrowserActivity) getContext(), mIsVisibleObserver);
         mTrayViewModel.setHeadsetBatteryLevel(R.drawable.ic_icon_statusbar_indicator_10);
+        mTrayViewModel.setTabsButtonInTray(SettingsStore.getInstance(getContext()).getTabsLocation() == SettingsStore.TABS_LOCATION_TRAY);
+
         updateUI();
 
         mIsWindowAttached = false;
@@ -140,6 +144,8 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
 
         mConnectivityReceived = ((VRBrowserApplication)getContext().getApplicationContext()).getConnectivityReceiver();
         mConnectivityReceived.addListener(this);
+
+        PreferenceManager.getDefaultSharedPreferences(getContext()).registerOnSharedPreferenceChangeListener(this);
 
         mWifiSSID = getContext().getString(R.string.tray_wifi_no_connection);
 
@@ -218,13 +224,23 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
             notifyAddWindowClicked();
         });
 
-        mBinding.libraryButton.setOnHoverListener(mButtonScaleHoverListener);
-        mBinding.libraryButton.setOnClickListener(view -> {
+        mBinding.bookmarksButton.setOnHoverListener(mButtonScaleHoverListener);
+        mBinding.bookmarksButton.setOnClickListener(view -> {
             if (mAudio != null) {
                 mAudio.playSound(AudioEngine.Sound.CLICK);
             }
 
-            notifyLibraryClicked();
+            notifyBookmarksClicked();
+            view.requestFocusFromTouch();
+        });
+
+        mBinding.downloadsButton.setOnHoverListener(mButtonScaleHoverListener);
+        mBinding.downloadsButton.setOnClickListener(view -> {
+            if (mAudio != null) {
+                mAudio.playSound(AudioEngine.Sound.CLICK);
+            }
+
+            notifyDownloadsClicked();
             view.requestFocusFromTouch();
         });
 
@@ -400,7 +416,7 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
     }
 
     private OnHoverListener mButtonScaleHoverListener = (view, motionEvent) -> {
-        UIButton button = (UIButton)view;
+        UIButton button = (UIButton) view;
         if (button.isActive() || button.isPrivate()) {
             return false;
         }
@@ -408,14 +424,14 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         int ev = motionEvent.getActionMasked();
         switch (ev) {
             case MotionEvent.ACTION_HOVER_ENTER:
-                if (!view.isPressed() && ViewUtils.isInsideView(view, (int)motionEvent.getRawX(), (int)motionEvent.getRawY())) {
-                    animateViewPadding(view, mMaxPadding, mMinPadding, ICON_ANIMATION_DURATION);
+                if (!button.isPressed() && ViewUtils.isInsideView(button, (int) motionEvent.getRawX(), (int) motionEvent.getRawY())) {
+                    animateButtonPadding(button, mMinPadding, ICON_ANIMATION_DURATION);
                 }
                 return false;
 
             case MotionEvent.ACTION_HOVER_EXIT:
-                if (!ViewUtils.isInsideView(view, (int)motionEvent.getRawX(), (int)motionEvent.getRawY())) {
-                    animateViewPadding(view, mMinPadding, mMaxPadding, ICON_ANIMATION_DURATION);
+                if (!ViewUtils.isInsideView(button, (int) motionEvent.getRawX(), (int) motionEvent.getRawY())) {
+                    animateButtonPadding(button, mMaxPadding, ICON_ANIMATION_DURATION);
                 }
                 return false;
         }
@@ -423,49 +439,35 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         return false;
     };
 
-    private void animateViewPadding(View view, int paddingStart, int paddingEnd, int duration) {
-        if (view.isPressed() || !mIsWindowAttached) {
-            view.setPadding(paddingEnd, paddingEnd, paddingEnd, paddingEnd);
+    // This animation assumes that the padding is always symmetrical.
+    private void animateButtonPadding(UIButton button, int paddingEnd, int duration) {
+        if (button.getPaddingLeft() == paddingEnd) {
             return;
         }
 
-        ValueAnimator animation = ValueAnimator.ofInt(paddingStart, paddingEnd);
-        animation.setDuration(duration);
-        animation.setInterpolator(new AccelerateDecelerateInterpolator());
-        animation.addUpdateListener(valueAnimator -> {
-            try {
-                int newPadding = Integer.parseInt(valueAnimator.getAnimatedValue().toString());
-                view.setPadding(newPadding, newPadding, newPadding, newPadding);
-            }
-            catch (NumberFormatException ex) {
-                Log.e(LOGTAG, "Error parsing tray animation value: " + valueAnimator.getAnimatedValue().toString());
-            }
-        });
-        animation.addListener(new Animator.AnimatorListener() {
+        if (button.isPressed() || !mIsWindowAttached) {
+            button.setPadding(paddingEnd, paddingEnd, paddingEnd, paddingEnd);
+            return;
+        }
 
-            @Override
-            public void onAnimationStart(Animator animator) {
-            }
+        if (button.getAnimation() != null) {
+            button.getAnimation().cancel();
+        }
 
-            @Override
-            public void onAnimationEnd(Animator animator) {
-                UIButton button = (UIButton)view;
-                if(button.isActive() || button.isPrivate()) {
-                    view.setPadding(mMinPadding, mMinPadding, mMinPadding, mMinPadding);
-                }
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animator) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animator) {
-
-            }
-        });
-        animation.start();
+        int paddingStart = button.getPaddingLeft();
+        button.animate()
+                .setDuration(duration)
+                .setUpdateListener(animation -> {
+                    float progress = animation.getAnimatedFraction();
+                    int interpolatedPadding = (int) (paddingStart + progress * (paddingEnd - paddingStart));
+                    button.setPadding(interpolatedPadding, interpolatedPadding, interpolatedPadding, interpolatedPadding);
+                })
+                .withEndAction(() -> {
+                    if (button.isActive() || button.isPrivate()) {
+                        button.setPadding(mMinPadding, mMinPadding, mMinPadding, mMinPadding);
+                    }
+                })
+                .start();
     }
 
     public void addListeners(TrayListener... listeners) {
@@ -491,9 +493,14 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         mTrayListeners.forEach(TrayListener::onAddWindowClicked);
     }
 
-    private void notifyLibraryClicked() {
+    private void notifyBookmarksClicked() {
         hideNotifications();
-        mTrayListeners.forEach(TrayListener::onLibraryClicked);
+        mTrayListeners.forEach(TrayListener::onBookmarksClicked);
+    }
+
+    private void notifyDownloadsClicked() {
+        hideNotifications();
+        mTrayListeners.forEach(TrayListener::onDownloadsClicked);
     }
 
     @Override
@@ -578,7 +585,7 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         mWidgetPlacement.parentHandle = -1;
 
         if (mViewModel != null) {
-            mViewModel.getIsLibraryVisible().removeObserver(mIsLibraryVisible);
+            mViewModel.getCurrentContentType().removeObserver(mCurrentContentTypeObserver);
             mViewModel.getIsPrivateSession().removeObserver(mIsPrivateSession);
             mViewModel = null;
         }
@@ -601,7 +608,7 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
                 (VRBrowserActivity)getContext(),
                 ViewModelProvider.AndroidViewModelFactory.getInstance(((VRBrowserActivity) getContext()).getApplication()))
                 .get(String.valueOf(mAttachedWindow.hashCode()), WindowViewModel.class);
-        mViewModel.getIsLibraryVisible().observe((VRBrowserActivity)getContext(), mIsLibraryVisible);
+        mViewModel.getCurrentContentType().observe((VRBrowserActivity) getContext(), mCurrentContentTypeObserver);
         mViewModel.getIsPrivateSession().observe((VRBrowserActivity)getContext(), mIsPrivateSession);
 
         mBinding.setViewmodel(mViewModel);
@@ -611,14 +618,20 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         mIsWindowAttached = true;
     }
 
-    private Observer<ObservableBoolean> mIsLibraryVisible = aBoolean -> {
-        if (mBinding.libraryButton.isHovered()) {
-            return;
-        }
-        if (aBoolean.get()) {
-            animateViewPadding(mBinding.libraryButton, mMaxPadding, mMinPadding, ICON_ANIMATION_DURATION);
+    private Observer<Windows.ContentType> mCurrentContentTypeObserver = contentType -> {
+        // Prevent a race condition in case the animation runs faster than the data binding.
+        mBinding.bookmarksButton.setActiveMode(contentType != Windows.ContentType.WEB_CONTENT && contentType != Windows.ContentType.DOWNLOADS);
+        mBinding.downloadsButton.setActiveMode(contentType == Windows.ContentType.DOWNLOADS);
+
+        if (contentType == Windows.ContentType.WEB_CONTENT) {
+            animateButtonPadding(mBinding.bookmarksButton, mMaxPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.downloadsButton, mMaxPadding, ICON_ANIMATION_DURATION);
+        } else if (contentType == Windows.ContentType.DOWNLOADS) {
+            animateButtonPadding(mBinding.bookmarksButton, mMaxPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.downloadsButton, mMinPadding, ICON_ANIMATION_DURATION);
         } else {
-            animateViewPadding(mBinding.libraryButton, mMinPadding, mMaxPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.bookmarksButton, mMinPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.downloadsButton, mMaxPadding, ICON_ANIMATION_DURATION);
         }
     };
 
@@ -627,9 +640,9 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
             return;
         }
         if (aBoolean.get()) {
-            animateViewPadding(mBinding.privateButton, mMaxPadding, mMinPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.privateButton, mMinPadding, ICON_ANIMATION_DURATION);
         } else {
-            animateViewPadding(mBinding.privateButton, mMinPadding, mMaxPadding, ICON_ANIMATION_DURATION);
+            animateButtonPadding(mBinding.privateButton, mMaxPadding, ICON_ANIMATION_DURATION);
         }
     };
 
@@ -664,6 +677,10 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         mTrayViewModel.setIsMaxWindows(!aVisible);
     }
 
+    public void setTabsWidgetVisible(boolean aVisible) {
+        mTrayViewModel.setIsTabsWidgetVisible(aVisible);
+    }
+
     // WidgetManagerDelegate.UpdateListener
 
     @Override
@@ -684,16 +701,16 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
     }
 
     public void showBookmarkAddedNotification() {
-        showNotification(BOOKMARK_ADDED_NOTIFICATION_ID, mBinding.libraryButton, R.string.bookmarks_saved_notification);
+        showNotification(BOOKMARK_ADDED_NOTIFICATION_ID, mBinding.bookmarksButton, R.string.bookmarks_saved_notification);
     }
 
     public void showWebAppAddedNotification() {
-        showNotification(WEB_APP_ADDED_NOTIFICATION_ID, mBinding.libraryButton, R.string.web_apps_saved_notification);
+        showNotification(WEB_APP_ADDED_NOTIFICATION_ID, mBinding.bookmarksButton, R.string.web_apps_saved_notification);
     }
 
     public void showDownloadCompletedNotification(String filename) {
         showNotification(DOWNLOAD_COMPLETED_NOTIFICATION_ID,
-                mBinding.libraryButton,
+                mBinding.downloadsButton,
                 getContext().getString(R.string.download_completed_notification, filename));
     }
 
@@ -748,7 +765,7 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         long inProgressNum = downloads.stream().filter(item -> item.inProgress()).count();
         mTrayViewModel.setDownloadsNumber((int)inProgressNum);
         if (inProgressNum == 0) {
-            mBinding.libraryButton.setLevel(0);
+            mBinding.downloadsButton.setLevel(0);
 
         } else {
             long size = downloads.stream()
@@ -760,7 +777,7 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
                     .sum();
             if (size > 0) {
                 long percent = downloaded*100/size;
-                mBinding.libraryButton.setLevel((int)percent*100);
+                mBinding.downloadsButton.setLevel((int) percent * 100);
             }
         }
     }
@@ -923,5 +940,14 @@ public class TrayWidget extends UIWidget implements WidgetManagerDelegate.Update
         java.text.DateFormat format = SimpleDateFormat.getDateInstance(
                 SimpleDateFormat.FULL, LocaleUtils.getDisplayLanguage(getContext()).getLocale());
         return format.format(new Date());
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, @Nullable String key) {
+        if (Objects.equals(key, getContext().getString(R.string.settings_key_tabs_location))) {
+            int value = sharedPreferences.getInt(key, SettingsStore.TABS_LOCATION_TRAY);
+            mTrayViewModel.setTabsButtonInTray(value == SettingsStore.TABS_LOCATION_TRAY);
+            updateUI();
+        }
     }
 }

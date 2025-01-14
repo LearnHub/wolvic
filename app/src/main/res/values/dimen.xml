@@ -15,11 +15,13 @@
     <item name="window_world_z_max" format="float" type="dimen">-5.2</item>
 
     <!-- Navigation bar -->
-    <dimen name="navigation_bar_width">720dp</dimen>
-    <dimen name="navigation_bar_height">44dp</dimen>
+    <dimen name="navigation_bar_width">800dp</dimen>
+    <dimen name="navigation_bar_height">96dp</dimen>
     <dimen name="url_bar_item_width">28dp</dimen>
     <dimen name="url_bar_first_item_width">36dp</dimen>
     <dimen name="url_bar_last_item_width">36dp</dimen>
+    <dimen name="move_bar_width">60dp</dimen>
+    <dimen name="move_bar_hover_width">80dp</dimen>
 
     <!-- Title bar -->
     <dimen name="title_bar_width">300dp</dimen>
@@ -73,6 +75,7 @@
     <dimen name="settings_width">680dp</dimen>
     <dimen name="settings_height">490dp</dimen>
     <dimen name="settings_main_button_text_width">125dp</dimen>
+    <dimen name="settings_outline_button_height">24dp</dimen>
 
     <!-- Lang Selector -->
     <dimen name="lang_selector_narrow_col_item_width">100dp</dimen>
@@ -107,13 +110,19 @@
 
     <!-- Tabs -->
     <dimen name="tabs_width">650dp</dimen>
-    <dimen name="tabs_height">380dp</dimen>
+    <dimen name="tabs_height">490dp</dimen>
     <dimen name="tabs_spacing_h">6dp</dimen>
     <dimen name="tab_view_height">87dp</dimen>
     <dimen name="tab_view_url_height">16dp</dimen>
     <dimen name="tab_shadow_padding">2dp</dimen>
     <dimen name="tabs_icon_padding_max">7dp</dimen>
     <dimen name="tabs_icon_padding_min">3dp</dimen>
+
+    <!-- Tabs Bar -->
+    <dimen name="vertical_tabs_bar_width">200dp</dimen>
+    <dimen name="vertical_tabs_bar_item_height">48dp</dimen>
+    <dimen name="horizontal_tabs_bar_height">52dp</dimen>
+    <dimen name="horizontal_tabs_bar_item_width">128dp</dimen>
 
     <!-- No Internet toast -->
     <dimen name="no_internet_width">400dp</dimen>
@@ -129,8 +138,8 @@
     <!-- Tray -->
     <item name="tray_world_y" format="float" type="dimen">0.25</item>
     <item name="tray_world_z" format="float" type="dimen">-2.5</item>
-    <item name="tray_world_width" format="float" type="dimen">1.2</item>
-    <dimen name="tray_width">204dp</dimen>
+    <item name="tray_world_width" format="float" type="dimen">1.4</item>
+    <dimen name="tray_width">244dp</dimen>
     <dimen name="tray_height">66dp</dimen>
     <!-- The density of the tray tooltips is the default one. -->
     <item name="tray_tooltip_density" format="float" type="dimen">1.0</item>
@@ -188,6 +197,11 @@
     <item name="url_bar_popup_world_x" format="float" type="dimen">1.25</item>
     <item name="url_bar_popup_world_y" format="float" type="dimen">0.15</item>
     <item name="url_bar_popup_world_z" format="float" type="dimen">0.1</item>
+
+    <dimen name="nav_button_size">44dp</dimen>
+    <dimen name="nav_button_padding">12dp</dimen>
+    <dimen name="nav_button_progress_padding">9dp</dimen>
+    <dimen name="nav_button_margin">8dp</dimen>
 
     <dimen name="tray_icon_padding_max">10dp</dimen>
     <dimen name="tray_icon_padding_min">8dp</dimen>
@@ -251,7 +265,7 @@
     <dimen name="display_options_height">420dp</dimen>
 
     <!-- Language and voice settings -->
-    <dimen name="language_options_height">380dp</dimen>
+    <dimen name="language_options_height">400dp</dimen>
 
     <!-- JS Prompt dialogs -->
     <item name="js_prompt_y_distance" format="float" type="dimen">1.2</item>

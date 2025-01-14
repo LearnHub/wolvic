@@ -217,6 +217,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         setupListeners(mSession);
 
         mLibrary = new LibraryPanel(aContext);
+        mLibrary.setController(this::showPanel);
 
         SessionStore.get().getBookmarkStore().addListener(mBookmarksListener);
 
@@ -330,7 +331,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
 
     @Override
     protected void onDismiss() {
-        if (mViewModel.getIsLibraryVisible().getValue().get()) {
+        if (mViewModel.getIsNativeContentVisible().getValue().get()) {
             if (!mLibrary.onBack()) {
                 hidePanel();
             }
@@ -485,8 +486,12 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         }
     }
 
-    public boolean isLibraryVisible() {
-        return mViewModel.getIsLibraryVisible().getValue().get();
+    public boolean isNativeContentVisible() {
+        return mViewModel.getIsNativeContentVisible().getValue().get();
+    }
+
+    public Windows.ContentType getCurrentContentType() {
+        return mViewModel.getCurrentContentType().getValue();
     }
 
     public int getWindowWidth() {
@@ -497,55 +502,51 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         return mWidgetPlacement.height;
     }
 
-    public @Windows.PanelType
-    int getSelectedPanel() {
+    public Windows.ContentType getSelectedPanel() {
         return mLibrary.getSelectedPanelType();
     }
 
     private void hideLibraryPanel() {
-        if (mViewModel.getIsLibraryVisible().getValue().get()) {
+        if (mViewModel.getIsNativeContentVisible().getValue().get()) {
             hidePanel(true);
-        }
-    }
-
-    public void switchPanel(@Windows.PanelType int panelType) {
-        if (mViewModel.getIsLibraryVisible().getValue().get()) {
-            hidePanel(true);
-
-        } else {
-            showPanel(panelType, true);
         }
     }
 
     Runnable mRestoreFirstPaint;
 
-    public void showPanel(@Windows.PanelType int panelType) {
-        showPanel(panelType, true);
+    public void showPanel(Windows.ContentType panelType) {
+        if (panelType == Windows.ContentType.WEB_CONTENT) {
+            hidePanel();
+        } else {
+            showPanel(panelType, true);
+        }
     }
 
-    private void showPanel(@Windows.PanelType int panelType, boolean switchSurface) {
-        if (mLibrary != null) {
-            if (mView == null) {
-                setView(mLibrary, switchSurface);
-                mLibrary.selectPanel(panelType);
-                mLibrary.onShow();
-                mViewModel.setIsFindInPage(false);
-                mViewModel.setIsPanelVisible(true);
-                if (mRestoreFirstPaint == null && !isFirstPaintReady() && (mFirstDrawCallback != null) && (mSurface != null)) {
-                    final Runnable firstDrawCallback = mFirstDrawCallback;
-                    onFirstContentfulPaint(mSession.getWSession());
-                    mRestoreFirstPaint = () -> {
-                        setFirstPaintReady(false);
-                        setFirstDrawCallback(firstDrawCallback);
-                        if (mWidgetManager != null) {
-                            mWidgetManager.updateWidget(WindowWidget.this);
-                        }
-                    };
-                }
+    private void showPanel(Windows.ContentType contentType, boolean switchSurface) {
+        if (mLibrary == null) {
+            return;
+        }
 
-            } else if (mView == mLibrary) {
-                mLibrary.selectPanel(panelType);
+        mViewModel.setIsFindInPage(false);
+        mViewModel.setCurrentContentType(contentType);
+        mViewModel.setUrl(contentType.URL);
+        if (mView == null) {
+            setView(mLibrary, switchSurface);
+            mLibrary.selectPanel(contentType);
+            mLibrary.onShow();
+            if (mRestoreFirstPaint == null && !isFirstPaintReady() && (mFirstDrawCallback != null) && (mSurface != null)) {
+                final Runnable firstDrawCallback = mFirstDrawCallback;
+                onFirstContentfulPaint(mSession.getWSession());
+                mRestoreFirstPaint = () -> {
+                    setFirstPaintReady(false);
+                    setFirstDrawCallback(firstDrawCallback);
+                    if (mWidgetManager != null) {
+                        mWidgetManager.updateWidget(WindowWidget.this);
+                    }
+                };
             }
+        } else if (mView == mLibrary) {
+            mLibrary.selectPanel(contentType);
         }
     }
 
@@ -557,7 +558,7 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         if (mView != null && mLibrary != null) {
             unsetView(mLibrary, switchSurface);
             mLibrary.onHide();
-            mViewModel.setIsPanelVisible(false);
+            mViewModel.setCurrentContentType(Windows.ContentType.WEB_CONTENT);
         }
         if (switchSurface && mRestoreFirstPaint != null) {
             mRestoreFirstPaint.run();
@@ -1050,9 +1051,15 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         // default position
         mWidgetPlacement.translationY = WidgetPlacement.unitFromMeters(getContext(), R.dimen.window_world_y);
         // center vertically relative to the default position
-        mWidgetPlacement.translationY += (SettingsStore.WINDOW_HEIGHT_DEFAULT - mWidgetPlacement.height) / 2.0f;
+        mWidgetPlacement.translationY += (SettingsStore.getInstance(getContext()).getWindowHeight() - mWidgetPlacement.height) / 2.0f;
         mWidgetManager.updateWidget(this);
         mWidgetManager.updateVisibleWidgets();
+    }
+
+    public void setOffset(float horizontalOffset, float verticalOffset) {
+        mWidgetPlacement.horizontalOffset = horizontalOffset;
+        mWidgetPlacement.verticalOffset = verticalOffset;
+        mWidgetManager.updateWidget(this);
     }
 
     @Override
@@ -1127,12 +1134,12 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         }
         mWidgetPlacement.visible = aVisible;
         if (!aVisible) {
-            if (mViewModel.getIsLibraryVisible().getValue().get()) {
+            if (mViewModel.getIsNativeContentVisible().getValue().get()) {
                 mWidgetManager.popWorldBrightness(this);
             }
 
         } else {
-            if (mViewModel.getIsLibraryVisible().getValue().get()) {
+            if (mViewModel.getIsNativeContentVisible().getValue().get()) {
                 mWidgetManager.pushWorldBrightness(this, WidgetManagerDelegate.DEFAULT_DIM_BRIGHTNESS);
             }
         }
@@ -1568,14 +1575,23 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
     }
 
     public Pair<Float, Float> getMinWorldSize() {
+        SettingsStore settings = SettingsStore.getInstance(getContext());
         float minWidth = WidgetPlacement.floatDimension(getContext(), R.dimen.window_world_width) * MIN_SCALE;
-        float minHeight = minWidth * SettingsStore.WINDOW_HEIGHT_DEFAULT / SettingsStore.WINDOW_WIDTH_DEFAULT;
+        float minHeight = minWidth * settings.getWindowHeight() / settings.getWindowWidth();
         return new Pair<>(minWidth, minHeight);
+    }
+
+    public Pair<Float, Float> getDefaultWorldSize() {
+        SettingsStore settings = SettingsStore.getInstance(getContext());
+        float defaultWidth = settings.getWindowWidth() * WidgetPlacement.worldToDpRatio(getContext());
+        float defaultHeight = settings.getWindowHeight() * WidgetPlacement.worldToDpRatio(getContext());
+        return new Pair<>(defaultWidth, defaultHeight);
     }
 
     public @NonNull Pair<Float, Float> getSizeForScale(float aScale, float aAspect) {
         Pair<Float, Float> minWorldSize = getMinWorldSize();
         Pair<Float, Float> maxWorldSize = getMaxWorldSize();
+        Pair<Float, Float> defaultWorldSize = getDefaultWorldSize();
         Pair<Float,Float> mainAxisMinMax, crossAxisMinMax;
         float mainAxisDefault, mainAxisTarget;
         float mainCrossAspect;
@@ -1583,13 +1599,13 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         boolean isHorizontal = aAspect >= 1.0;
         if (isHorizontal) {
             // horizontal orientation
-            mainAxisDefault = WidgetPlacement.floatDimension(getContext(), R.dimen.window_world_width);
+            mainAxisDefault = defaultWorldSize.first;
             mainAxisMinMax = Pair.create(minWorldSize.first, maxWorldSize.first);
             crossAxisMinMax = Pair.create(minWorldSize.second, maxWorldSize.second);
             mainCrossAspect = aAspect;
         } else {
             // vertical orientation
-            mainAxisDefault = WidgetPlacement.floatDimension(getContext(), R.dimen.window_world_width) * aAspect;
+            mainAxisDefault = defaultWorldSize.second;
             mainAxisMinMax = Pair.create(minWorldSize.second, maxWorldSize.second);
             crossAxisMinMax = Pair.create(minWorldSize.first, maxWorldSize.first);
             mainCrossAspect = 1 / aAspect;
@@ -1941,14 +1957,6 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         mViewModel.setIsLoading(false);
     }
 
-    @Override
-    public void onProgressChange(@NonNull WSession aSession, int progress) {
-        // Pages that are completely loaded from cache don't trigger onFirstContentfulPaint so we
-        // force it here to the get page properly rendered.
-        if (!mAfterFirstPaint)
-            mSession.onFirstContentfulPaint(aSession);
-    }
-
     public void captureImage() {
         mSession.captureBitmap();
     }
@@ -2003,16 +2011,16 @@ public class WindowWidget extends UIWidget implements SessionChangeListener,
         Uri uri = Uri.parse(aRequest.uri);
         if (UrlUtils.isAboutPage(uri.toString())) {
             if(UrlUtils.isBookmarksUrl(uri.toString())) {
-                showPanel(Windows.BOOKMARKS);
+                showPanel(Windows.ContentType.BOOKMARKS);
 
             } else if (UrlUtils.isHistoryUrl(uri.toString())) {
-                showPanel(Windows.HISTORY);
+                showPanel(Windows.ContentType.HISTORY);
 
             } else if (UrlUtils.isDownloadsUrl(uri.toString())) {
-                showPanel(Windows.DOWNLOADS);
+                showPanel(Windows.ContentType.DOWNLOADS);
 
             } else if (UrlUtils.isAddonsUrl(uri.toString())) {
-                showPanel(Windows.ADDONS);
+                showPanel(Windows.ContentType.ADDONS);
 
             } else {
                 hideLibraryPanel();

@@ -19,8 +19,10 @@ public class TrayViewModel extends AndroidViewModel {
     private MutableLiveData<ObservableBoolean> isKeyboardVisible;
     private MutableLiveData<ObservableInt> downloadsNumber;
     private MediatorLiveData<ObservableBoolean> isVisible;
+    private MutableLiveData<ObservableBoolean> isTabsWidgetVisible;
     private MutableLiveData<String> time;
     private MutableLiveData<String> pm;
+    private MutableLiveData<ObservableBoolean> tabsButtonInTray;
     private MutableLiveData<ObservableBoolean> wifiConnected;
     private MutableLiveData<ObservableInt> headsetIcon;
     private MutableLiveData<ObservableInt> headsetBatteryLevel;
@@ -41,9 +43,10 @@ public class TrayViewModel extends AndroidViewModel {
         isVisible.addSource(shouldBeVisible, mIsVisibleObserver);
         isVisible.addSource(isKeyboardVisible, mIsVisibleObserver);
         isVisible.setValue(new ObservableBoolean(false));
+        isTabsWidgetVisible = new MutableLiveData<>(new ObservableBoolean(false));
         time = new MutableLiveData<>();
         pm = new MutableLiveData<>();
-        pm = new MutableLiveData<>();
+        tabsButtonInTray = new MutableLiveData<>(new ObservableBoolean(true));
         wifiConnected = new MutableLiveData<>(new ObservableBoolean(true));
         headsetIcon = new MutableLiveData<>(new ObservableInt(R.drawable.ic_icon_statusbar_headset_normal));
         headsetBatteryLevel = new MutableLiveData<>(new ObservableInt(R.drawable.ic_icon_statusbar_indicator));
@@ -67,8 +70,10 @@ public class TrayViewModel extends AndroidViewModel {
         isMaxWindows.setValue(isMaxWindows.getValue());
         shouldBeVisible.setValue(shouldBeVisible.getValue());
         isKeyboardVisible.setValue(isKeyboardVisible.getValue());
+        isTabsWidgetVisible.postValue(isTabsWidgetVisible.getValue());
         time.postValue(time.getValue());
         pm.postValue(pm.getValue());
+        tabsButtonInTray.postValue(tabsButtonInTray.getValue());
         wifiConnected.postValue(wifiConnected.getValue());
         headsetIcon.setValue(headsetIcon.getValue());
         headsetBatteryLevel.setValue(headsetBatteryLevel.getValue());
@@ -93,6 +98,14 @@ public class TrayViewModel extends AndroidViewModel {
 
     public void setIsKeyboardVisible(boolean isVisible) {
         this.isKeyboardVisible.setValue(new ObservableBoolean(isVisible));
+    }
+
+    public void setIsTabsWidgetVisible(boolean isTabsWidgetVisible) {
+        this.isTabsWidgetVisible.setValue(new ObservableBoolean(isTabsWidgetVisible));
+    }
+
+    public MutableLiveData<ObservableBoolean> getIsTabsWidgetVisible() {
+        return isTabsWidgetVisible;
     }
 
     public void setIsVisible(boolean isVisible) {
@@ -125,6 +138,14 @@ public class TrayViewModel extends AndroidViewModel {
 
     public MutableLiveData<String> getPm() {
         return pm;
+    }
+
+    public void setTabsButtonInTray(boolean tabsButtonInTray) {
+        this.tabsButtonInTray.setValue(new ObservableBoolean(tabsButtonInTray));
+    }
+
+    public MutableLiveData<ObservableBoolean> getTabsButtonInTray() {
+        return tabsButtonInTray;
     }
 
     public void setWifiConnected(boolean connected) {

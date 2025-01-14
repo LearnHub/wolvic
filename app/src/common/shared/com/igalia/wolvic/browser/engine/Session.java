@@ -12,6 +12,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import androidx.preference.PreferenceManager;
+
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Surface;
 import android.view.inputmethod.CursorAnchorInfo;
@@ -209,6 +212,9 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
         if (mState.mSession != null) {
             setActive(false);
             suspend();
+        } else {
+            // Notify listeners manually.
+            mSessionChangeListeners.forEach(listener -> listener.onSessionRemoved(mState.mId));
         }
 
         if (mState.mParentId != null) {
@@ -277,9 +283,7 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
             return;
         if (mState.mIsLoading) {
             aListener.onPageStart(mState.mSession, mState.mUri);
-            aListener.onProgressChange(mState.mSession, 0);
         } else {
-            aListener.onProgressChange(mState.mSession, 100);
             aListener.onPageStop(mState.mSession, true);
         }
 
@@ -1277,16 +1281,6 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
     }
 
     @Override
-    public void onProgressChange(@NonNull WSession aSession, int progress) {
-        if (mState.mSession != aSession) {
-            return;
-        }
-        for (WSession.ProgressDelegate listener : mProgressListeners) {
-            listener.onProgressChange(aSession, progress);
-        }
-    }
-
-    @Override
     public void onSecurityChange(@NonNull WSession aSession, @NonNull SecurityInformation aInformation) {
         if (mState.mSession != aSession) {
             return;
@@ -1376,6 +1370,13 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
                 for (WSession.ContentDelegate listener : mContentListeners) {
                     listener.onFirstContentfulPaint(aSession);
                 }
+            } else if (!mState.mIsLoading) {
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    // onFirstContentfulPaint is not emitted sometimes when loading a page from
+                    // the cache. This is a workaround to ensure that the event is emitted.
+                    if (!mFirstContentfulPaint)
+                        onFirstContentfulPaint(aSession);
+                }, 500);
             }
         }
     }

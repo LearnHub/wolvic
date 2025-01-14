@@ -21,6 +21,8 @@
     <string name="settings_key_speech_data_collection" translatable="false">settings_key_speech_data_collection</string>
     <string name="settings_key_speech_data_collection_reviewed" translatable="false">settings_key_speech_data_collection_accept</string>
     <string name="settings_key_window_distance" translatable="false">settings_window_distance</string>
+    <string name="settings_key_window_width" translatable="false">settings_window_width</string>
+    <string name="settings_key_window_height" translatable="false">settings_window_height</string>
     <string name="settings_key_user_agent_version" translatable="false">settings_user_agent_version_v2</string>
     <string name="settings_key_input_mode" translatable="false">settings_touch_mode</string>
     <string name="settings_key_center_windows" translatable="false">settings_center_windows</string>
@@ -46,7 +48,7 @@
     <string name="settings_key_crash_restart_count_timestamp" translatable="false">settings_key_crash_restart_count_timestamp</string>
     <string name="settings_key_keyboard_move" translatable="false">settings_key_keyboard_move</string>
     <string name="settings_key_pointer_mode" translatable="false">settings_key_pointer_mode</string>
-    <string name="private_browsing_support_url" translatable="false">https://support.mozilla.org/kb/private-mode-firefox-reality</string>
+    <string name="private_browsing_support_url" translatable="false">https://wolvic.com/en/support/private-mode</string>
     <string name="settings_key_browser_world_width" translatable="false">settings_browser_world_width</string>
     <string name="settings_key_browser_world_height" translatable="false">settings_browser_world_height</string>
     <string name="settings_key_notifications" translatable="false">settings_key_notifications</string>
@@ -83,6 +85,7 @@
     <string name="settings_key_privacy_policy_accepted" translatable="false">settings_key_privacy_policy_accepted</string>
     <string name="settings_key_search_engine_id" translatable="false">settings_key_search_engine_id</string>
     <string name="settings_key_eye_tracking_supported" translatable="false">settings_key_eye_tracking_supported</string>
+    <string name="settings_key_tabs_location" translatable="false">settings_key_tabs_location</string>
     <string name="environment_override_help_url" translatable="false">https://github.com/igalia/wolvic/wiki/Environments</string>
     <string name="private_policy_url" translatable="false">https://wolvic.com/legal/privacy/</string>
     <string name="private_report_url" translatable="false">https://www.igalia.com/privacy/&amp;url=%1$s</string>
@@ -223,8 +226,10 @@
     <string name="keyboard_nl_NL_popup_u" translatable="false">uúüûùūůų</string>
     <string name="keyboard_nl_NL_popup_i" translatable="false">ìíiïîįī</string>
 
+    <!-- Homepage link -->
+    <string name="home_page_url" translatable="false">https://wolvic.com/</string>
+
     <!-- Settings Survey link -->
-    <string name="survey_link" translatable="false">https://github.com/Igalia/wolvic/issues/</string>
     <string name="feedback_link" translatable="false">https://wolvic.com/en/feedback/index.html?version=%1$s&amp;device=%2$d</string>
 
     <!-- Phone UI links -->

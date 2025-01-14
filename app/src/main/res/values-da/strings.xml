@@ -1221,12 +1221,6 @@
     <!-- This string is for the tooltip that appears when the user hovers over the 'Downloads' icon in the
          tray and the Downloads view is closed. The button it labels, when pressed, closes the Downloads view. -->
     <string name="close_downloads_tooltip">Luk Filhentninger</string>
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, opens the library panel. -->
-    <string name="open_library_tooltip">Åbn arkiv</string>
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, closes the Library panel. -->
-    <string name="close_library_tooltip">Luk arkiv</string>
     <!-- This string is for the tooltip that appears when the user hovers over the 'What's New' icon in the
          Navigation Bar. The button it labels, when pressed, open the release notes page. -->
     <string name="whats_new_tooltip">Nyheder</string>
@@ -1679,7 +1673,6 @@ the Select` button. When clicked it closes all the previously selected tabs -->
 \n
 \nVIGTIGT: Medmindre du bruger Sync, vil den nye Wolvic-app ikke have dine bogmærker og faner.</string>
     <string name="developer_options_center_windows">Centrer vinduer vertikalt</string>
-    <string name="display_options_windows_can_move">Træk for at flytte vinduer</string>
     <string name="controller_options_haptic_feedback">Haptisk feedback</string>
     <string name="security_options_permission_fine_location_warning">Wolvic kan kun få din omtrentlige placering. Dette kan ændres i systemindstillingerne.</string>
     <string name="voice_input_start">Hvad vil du gerne have input til?</string>

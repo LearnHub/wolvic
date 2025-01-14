@@ -20,6 +20,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.display.DisplayManager;
 import android.opengl.GLSurfaceView;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
@@ -170,7 +171,11 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         // Alternatively: android.hardware.usb.action.USB_DEVICE_ATTACHED, USB_DEVICE_DETACHED.
         IntentFilter usbPermissionFilter = new IntentFilter();
         usbPermissionFilter.addAction(HUAWEI_USB_PERMISSION);
-        registerReceiver(mUsbPermissionReceiver, usbPermissionFilter, Context.RECEIVER_NOT_EXPORTED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mUsbPermissionReceiver, usbPermissionFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mUsbPermissionReceiver, usbPermissionFilter);
+        }
 
         initializeAGConnect();
 
@@ -241,7 +246,6 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
 
     private void initVisionGlassPhoneUI() {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setTheme(R.style.FxR_Dark);
 
         ContextThemeWrapper themedContext = new ContextThemeWrapper(this, R.style.Theme_WolvicPhone);
@@ -249,6 +253,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         mBinding = DataBindingUtil.setContentView(this, R.layout.visionglass_layout);
         mBinding = DataBindingUtil.inflate(themedInflater, R.layout.visionglass_layout, null, false);
         setContentView(mBinding.getRoot());
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mViewModel = new ViewModelProvider(this).get(PhoneUIViewModel.class);
         mBinding.setViewModel(mViewModel);
@@ -265,8 +270,6 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
 
         Button backButton = findViewById(R.id.back_button);
         backButton.setOnClickListener(v -> onBackPressed());
-
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void showAlertDialog(String description) {
@@ -404,6 +407,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     protected void onPause() {
         Log.d(LOGTAG, "PlatformActivity onPause");
         super.onPause();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // This check is needed to prevent a crash when pausing before 3D mode has started.
         if (mActivePresentation != null) {
@@ -425,6 +429,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     protected void onResume() {
         Log.d(LOGTAG, "PlatformActivity onResume");
         super.onResume();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         registerPhoneIMUListener();
 

@@ -499,9 +499,13 @@
          and is used to customize if we use passthrough mode when the app starts. -->
     <string name="display_options_start_with_passthrough">Start with Passthrough Mode</string>
 
-    <!-- This string labels an On/Off switch in the 'Display Options' dialog and is used to
-         customize if windows can be moved. Enabling it adds a Move button to the navigation bar. -->
-    <string name="display_options_windows_can_move">Drag to move windows</string>
+    <!-- This string labels a set of radio buttons in the 'Display Options' dialog
+         and is used to customize the location of the Tabs pane. -->
+    <string name="display_options_tabs_location">Tabs location</string>
+
+    <string name="display_options_tabs_location_tray">Tray</string>
+    <string name="display_options_tabs_location_horizontal">Horizontal</string>
+    <string name="display_options_tabs_location_vertical">Vertical</string>
 
     <!-- This string labels an On/Off switch in the 'Display Options' dialog
          and is used to customize if we use sound effects when interacting with app. -->
@@ -606,6 +610,12 @@
 
     <!-- This string is used to label the MSAA radio button that enables two times MSAA in Immersive Mode. -->
     <string name="developer_options_msaa_4">4x</string>
+
+    <!-- This string is used to label the description of radio buttons for setting the default size of windows. -->
+    <string name="settings_window_size">Default Window Size</string>
+
+    <!-- This string is used to label the radio buttons that set the default size of windows. -->
+    <string name="window_size_preset">%1$d×%2$d</string>
 
     <!-- This string is used to label a set of radio buttons that allow the user to change the
          User-Agent (UA) string of the browser. -->
@@ -1826,14 +1836,6 @@
          tray and the Downloads view is closed. The button it labels, when pressed, closes the Downloads view. -->
     <string name="close_downloads_tooltip">Close Downloads</string>
 
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, opens the library panel. -->
-    <string name="open_library_tooltip">Open Library</string>
-
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, closes the Library panel. -->
-    <string name="close_library_tooltip">Close Library</string>
-
     <!-- This string is for the tooltip that appears when the user hovers over the 'What's New' icon in the
          Navigation Bar. The button it labels, when pressed, open the release notes page. -->
     <string name="whats_new_tooltip">What’s New</string>
@@ -2322,6 +2324,9 @@ the Select` button. When clicked it bookmarks all the previously selected tabs -
 
     <!-- This string is displayed in the body of the error dialog shown when downloaded addon installation is blocked. -->
     <string name="download_addon_install_blocked_body">Allow local addon installation in Developer Options to proceed.</string>
+
+    <!-- This string is displayed in the body of the error dialog shown when downloaded addon installation is blocked. -->
+    <string name="download_addon_install_blocked_permissions_body">Allow storage permissions in Privacy Options to proceed.</string>
 
     <!-- This string is shown in the body of the error dialog displayed when the user is trying to download an environment in the external storage
     but hasn't granted the permission. -->

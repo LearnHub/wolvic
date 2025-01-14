@@ -1218,12 +1218,6 @@
     <!-- This string is for the tooltip that appears when the user hovers over the 'Downloads' icon in the
          tray and the Downloads view is closed. The button it labels, when pressed, closes the Downloads view. -->
     <string name="close_downloads_tooltip">ダウンロードリストを閉じます</string>
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, opens the library panel. -->
-    <string name="open_library_tooltip">ライブラリーを開く</string>
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, closes the Library panel. -->
-    <string name="close_library_tooltip">ライブラリーを閉じる</string>
     <!-- This string is for the tooltip that appears when the user hovers over the 'What's New' icon in the
          Navigation Bar. The button it labels, when pressed, open the release notes page. -->
     <string name="whats_new_tooltip">新着情報</string>
@@ -1688,7 +1682,6 @@ the Select` button. When clicked it closes all the previously selected tabs -->
 \n\t•Wolvicの一部の機能はウェブ情報サービスを利用しています。そのサービスの信憑性やエラーの有無は保証できません。この機能に関する詳細（ウェブ情報サービスを利用する機能を不有効にする方法なども含み）は以下の利用規約に記述されています。</string>
     <string name="terms_service_subtitle_2">Wolvicウェブ情報サービス</string>
     <string name="developer_options_center_windows">ウィンドウを上下中央揃えにする</string>
-    <string name="display_options_windows_can_move">ウィンドウのドラッグを有効にする</string>
     <string name="display_options_sound_effect">効果音を使う</string>
     <string name="display_options_latin_auto_complete">ラテン文字キーボード入力の自動補完</string>
     <string name="display_options_head_lock">ヘッドロックを有効にする</string>

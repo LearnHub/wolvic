@@ -10,16 +10,17 @@ import static com.igalia.wolvic.db.SitePermission.SITE_PERMISSION_POPUP;
 import static com.igalia.wolvic.db.SitePermission.SITE_PERMISSION_TRACKING;
 import static com.igalia.wolvic.ui.widgets.menus.VideoProjectionMenuWidget.VIDEO_PROJECTION_NONE;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
-import android.net.Uri;
+import android.graphics.drawable.Drawable;
 import androidx.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -136,6 +137,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
     private WidgetPlacement mBeforeFullscreenPlacement;
     private float mSavedCylinderDensity = 0.0f;
     private Animation mAnimation;
+    private ValueAnimator mMoveBarAnimator;
 
     private class MoveTouchListener implements OnTouchListener {
         @Override
@@ -328,7 +330,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
             }
         });
 
-        mBinding.navigationBarNavigation.moveButton.setOnTouchListener(new MoveTouchListener());
+        mBinding.navigationBarNavigation.moveBar.setOnTouchListener(new MoveTouchListener());
         mBinding.navigationBarFullscreen.fullScreenMoveButton.setOnTouchListener(new MoveTouchListener());
 
         mBinding.navigationBarNavigation.menuButton.setOnClickListener(view -> {
@@ -1289,7 +1291,16 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
     }
 
     @Override
-    public void onLibraryClicked() {
+    public void onBookmarksClicked() {
+        onLibraryClicked();
+    }
+
+    @Override
+    public void onDownloadsClicked() {
+        onLibraryClicked();
+    }
+
+    private void onLibraryClicked() {
         if (mAttachedWindow.isResizing()) {
             exitResizeMode(ResizeAction.RESTORE_SIZE);
 
@@ -1379,12 +1390,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
             public void onAddons() {
                 hideMenu();
 
-                if (!mAttachedWindow.isLibraryVisible()) {
-                    mAttachedWindow.switchPanel(Windows.ADDONS);
-
-                } else if (mAttachedWindow.getSelectedPanel() != Windows.ADDONS) {
-                    mAttachedWindow.showPanel(Windows.ADDONS);
-                }
+                mAttachedWindow.showPanel(Windows.ContentType.ADDONS);
             }
 
             @Override
@@ -1460,7 +1466,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
         mBlockedCount++;
         final int currentCount = mBlockedCount;
         postDelayed(() -> {
-            if (currentCount == mBlockedCount && !mViewModel.getIsLibraryVisible().getValue().get()) {
+            if (currentCount == mBlockedCount && !mViewModel.getIsNativeContentVisible().getValue().get()) {
                 showNotification(POPUP_NOTIFICATION_ID,
                         mBinding.navigationBarNavigation.urlBar.getPopUpButton(),
                         NotificationManager.Notification.TOP,

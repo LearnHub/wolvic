@@ -446,10 +446,6 @@
          and is used to customize if we use passthrough mode when the app starts. -->
     <string name="display_options_start_with_passthrough">啟動時使用直通模式</string>
 
-    <!-- This string labels an On/Off switch in the 'Display Options' dialog and is used to
-         customize if windows can be moved. Enabling it adds a Move button to the navigation bar. -->
-    <string name="display_options_windows_can_move">拖拽移動視窗</string>
-
     <!-- This string labels an On/Off switch in the 'Display Options' dialog
          and is used to customize if we use sound effects when interacting with app. -->
     <string name="display_options_sound_effect">使用音效</string>
@@ -1694,14 +1690,6 @@
     <!-- This string is for the tooltip that appears when the user hovers over the 'Downloads' icon in the
          tray and the Downloads view is closed. The button it labels, when pressed, closes the Downloads view. -->
     <string name="close_downloads_tooltip">關閉下載項目</string>
-
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, opens the library panel. -->
-    <string name="open_library_tooltip">開啟收藏庫</string>
-
-    <!-- This string is for the tooltip that appears when the user hovers over the 'Library' icon in the
-         tray and the Library view is closed. The button it labels, when pressed, closes the Library panel. -->
-    <string name="close_library_tooltip">關閉收藏庫</string>
 
     <!-- This string is for the tooltip that appears when the user hovers over the 'What's New' icon in the
          Navigation Bar. The button it labels, when pressed, open the release notes page. -->

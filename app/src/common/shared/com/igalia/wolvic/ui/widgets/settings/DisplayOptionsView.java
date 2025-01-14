@@ -22,6 +22,9 @@ import com.igalia.wolvic.ui.views.settings.SwitchSetting;
 import com.igalia.wolvic.ui.widgets.WidgetManagerDelegate;
 import com.igalia.wolvic.ui.widgets.WidgetPlacement;
 
+import java.util.ArrayList;
+import java.util.List;
+
 class DisplayOptionsView extends SettingsView {
 
     private OptionsDisplayBinding mBinding;
@@ -72,6 +75,17 @@ class DisplayOptionsView extends SettingsView {
         mBinding.msaaRadio.setOnCheckedChangeListener(mMSSAChangeListener);
         setMSAAMode(mBinding.msaaRadio.getIdForValue(msaaLevel), false);
 
+        List<String> windowSizePresets = new ArrayList<>();
+        for (SettingsStore.WindowSizePreset preset : SettingsStore.WindowSizePreset.values()) {
+            windowSizePresets.add(getContext().getString(R.string.window_size_preset, preset.width, preset.height));
+        }
+        mBinding.windowsSize.setOptions(windowSizePresets.toArray(new String[0]));
+        mBinding.windowsSize.setOnCheckedChangeListener(mWindowsSizeChangeListener);
+        int windowWidth = SettingsStore.getInstance(getContext()).getWindowWidth();
+        int windowHeight = SettingsStore.getInstance(getContext()).getWindowHeight();
+        SettingsStore.WindowSizePreset windowSizePreset = SettingsStore.WindowSizePreset.fromValues(windowWidth, windowHeight);
+        setWindowsSizePreset(windowSizePreset.ordinal(), false);
+
         mBinding.autoplaySwitch.setOnCheckedChangeListener(mAutoplayListener);
         setAutoplay(SettingsStore.getInstance(getContext()).isAutoplayEnabled(), false);
 
@@ -93,8 +107,9 @@ class DisplayOptionsView extends SettingsView {
         mBinding.headLockSwitch.setOnCheckedChangeListener(mHeadLockListener);
         setHeadLock(SettingsStore.getInstance(getContext()).isHeadLockEnabled(), false);
 
-        mBinding.windowMovementSwitch.setOnCheckedChangeListener(mWindowMovementListener);
-        setWindowMovement(SettingsStore.getInstance(getContext()).isWindowMovementEnabled(), false);
+        @SettingsStore.TabsLocation int tabsLocation = SettingsStore.getInstance(getContext()).getTabsLocation();
+        mBinding.tabsLocationRadio.setOnCheckedChangeListener(mTabsLocationChangeListener);
+        setTabsLocation(mBinding.tabsLocationRadio.getIdForValue(tabsLocation), false);
 
         mDefaultHomepageUrl = getContext().getString(R.string.HOMEPAGE_URL);
 
@@ -165,6 +180,10 @@ class DisplayOptionsView extends SettingsView {
         setMSAAMode(checkedId, true);
     };
 
+    private RadioGroupSetting.OnCheckedChangeListener mWindowsSizeChangeListener = (radioGroup, checkedId, doApply) -> {
+        setWindowsSizePreset(checkedId, true);
+    };
+
     private SwitchSetting.OnCheckedChangeListener mAutoplayListener = (compoundButton, enabled, apply) -> {
         setAutoplay(enabled, true);
     };
@@ -185,8 +204,8 @@ class DisplayOptionsView extends SettingsView {
         setHeadLock(value, true);
     };
 
-    private SwitchSetting.OnCheckedChangeListener mWindowMovementListener = (compoundButton, enabled, apply) -> {
-        setWindowMovement(enabled, true);
+    private RadioGroupSetting.OnCheckedChangeListener mTabsLocationChangeListener = (radioGroup, checkedId, doApply) -> {
+        setTabsLocation(checkedId, true);
     };
 
     private OnClickListener mHomepageListener = (view) -> {
@@ -248,6 +267,13 @@ class DisplayOptionsView extends SettingsView {
             setMSAAMode(mBinding.msaaRadio.getIdForValue(SettingsStore.MSAA_DEFAULT_LEVEL), true);
             restart = true;
         }
+        if (!mBinding.tabsLocationRadio.getValueForId(mBinding.tabsLocationRadio.getCheckedRadioButtonId()).equals(SettingsStore.TABS_LOCATION_DEFAULT)) {
+            setTabsLocation(mBinding.tabsLocationRadio.getIdForValue(SettingsStore.TABS_LOCATION_DEFAULT), true);
+        }
+
+        if (mBinding.windowsSize.getCheckedRadioButtonId() != SettingsStore.WINDOW_SIZE_PRESET_DEFAULT.ordinal()) {
+            setWindowsSizePreset(SettingsStore.WINDOW_SIZE_PRESET_DEFAULT.ordinal(), true);
+        }
 
         float prevDensity = SettingsStore.getInstance(getContext()).getDisplayDensity();
         restart = restart | setDisplayDensity(SettingsStore.DISPLAY_DENSITY_DEFAULT);
@@ -262,7 +288,6 @@ class DisplayOptionsView extends SettingsView {
         setSoundEffect(SettingsStore.AUDIO_ENABLED, true);
         setLatinAutoComplete(SettingsStore.LATIN_AUTO_COMPLETE_ENABLED, true);
         setCenterWindows(SettingsStore.CENTER_WINDOWS_DEFAULT, true);
-        setWindowMovement(SettingsStore.WINDOW_MOVEMENT_DEFAULT, true);
         setWindowDistance(SettingsStore.WINDOW_DISTANCE_DEFAULT, true);
 
         if (mBinding.startWithPassthroughSwitch.isChecked() != SettingsStore.shouldStartWithPassthrougEnabled()) {
@@ -338,12 +363,6 @@ class DisplayOptionsView extends SettingsView {
         if (doApply) {
             settingsStore.setHeadLockEnabled(value);
         }
-
-        if (value && settingsStore.isWindowMovementEnabled()) {
-            // Disable window movement if head lock is enabled,
-            // otherwise the windows might be moved out of the user's reach.
-            setWindowMovement(false, true);
-        }
     }
 
     private void setSoundEffect(boolean value, boolean doApply) {
@@ -357,20 +376,14 @@ class DisplayOptionsView extends SettingsView {
         }
     }
 
-    private void setWindowMovement(boolean value, boolean doApply) {
-        mBinding.windowMovementSwitch.setOnCheckedChangeListener(null);
-        mBinding.windowMovementSwitch.setValue(value, false);
-        mBinding.windowMovementSwitch.setOnCheckedChangeListener(mWindowMovementListener);
+    private void setTabsLocation(int checkedId, boolean doApply) {
+        mBinding.tabsLocationRadio.setOnCheckedChangeListener(null);
+        mBinding.tabsLocationRadio.setChecked(checkedId, doApply);
+        mBinding.tabsLocationRadio.setOnCheckedChangeListener(mTabsLocationChangeListener);
 
-        SettingsStore settingsStore = SettingsStore.getInstance(getContext());
         if (doApply) {
-            settingsStore.setWindowMovementEnabled(value);
-        }
-
-        if (value && settingsStore.isHeadLockEnabled()) {
-            // Disable head lock if window movement is enabled,
-            // otherwise the windows might be moved out of the user's reach.
-            setHeadLock(false, true);
+            int tabsLocationValue = (Integer) mBinding.tabsLocationRadio.getValueForId(checkedId);
+            SettingsStore.getInstance(getContext()).setTabsLocation(tabsLocationValue);
         }
     }
 
@@ -408,6 +421,14 @@ class DisplayOptionsView extends SettingsView {
             SettingsStore.getInstance(getContext()).setMSAALevel((Integer)mBinding.msaaRadio.getValueForId(checkedId));
             showRestartDialog(() -> {setMSAAMode(previouslyCheckedMSAAId, true);});
         }
+    }
+
+    private void setWindowsSizePreset(int checkedId, boolean doApply) {
+        mBinding.windowsSize.setOnCheckedChangeListener(null);
+        mBinding.windowsSize.setChecked(checkedId, doApply);
+        mBinding.windowsSize.setOnCheckedChangeListener(mWindowsSizeChangeListener);
+
+        SettingsStore.getInstance(getContext()).setWindowSizePreset(checkedId);
     }
 
     private boolean setDisplayDensity(float newDensity) {
