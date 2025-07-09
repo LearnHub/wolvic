@@ -20,6 +20,8 @@ import com.igalia.wolvic.browser.engine.Session;
 import com.igalia.wolvic.browser.engine.SessionStore;
 import com.igalia.wolvic.ui.widgets.WidgetManagerDelegate;
 import com.igalia.wolvic.ui.widgets.WindowWidget;
+import com.igalia.wolvic.ui.widgets.Windows;
+import com.igalia.wolvic.utils.StringUtils;
 import com.igalia.wolvic.utils.UrlUtils;
 
 import java.util.Objects;
@@ -99,8 +101,11 @@ public class TabsBarItem extends RelativeLayout implements WSession.ContentDeleg
             mSession.addNavigationListener(this);
             mSession.addSessionChangeListener(this);
 
-            mTitle.setText(mSession.getCurrentTitle());
-            mSubtitle.setText(UrlUtils.stripProtocol(mSession.getCurrentUri()));
+            String title = mSession.getCurrentTitle();
+            String uri = mSession.getCurrentUri();
+            mTitle.setText(getTitleForDisplay(uri, title));
+            mSubtitle.setText(UrlUtils.isAboutPage(uri) ? "" : UrlUtils.stripProtocol(uri));
+
             SessionStore.get().getBrowserIcons().loadIntoView(
                     mFavicon, mSession.getCurrentUri(), IconRequest.Size.DEFAULT);
 
@@ -134,7 +139,7 @@ public class TabsBarItem extends RelativeLayout implements WSession.ContentDeleg
         if (mSession == null || mSession.getWSession() != session) {
             return;
         }
-        mTitle.setText(title);
+        mTitle.setText(getTitleForDisplay(mSession.getCurrentUri(), title));
     }
 
     @Override
@@ -143,14 +148,23 @@ public class TabsBarItem extends RelativeLayout implements WSession.ContentDeleg
             return;
         }
 
-        if (url == null) {
-            mSubtitle.setText(null);
-            mFavicon.setImageDrawable(null);
+        Windows.ContentType contentType = UrlUtils.getContentType(url);
+        if (contentType != Windows.ContentType.WEB_CONTENT) {
+            mTitle.setText(contentType.titleResId);
+            mSubtitle.setText("");
         } else {
-            mSubtitle.setText(UrlUtils.stripProtocol(mSession.getCurrentUri()));
-            SessionStore.get().getBrowserIcons().loadIntoView(
-                    mFavicon, mSession.getCurrentUri(), IconRequest.Size.DEFAULT);
+            mSubtitle.setText(UrlUtils.stripProtocol(url));
         }
+        SessionStore.get().getBrowserIcons().loadIntoView(
+                mFavicon, mSession.getCurrentUri(), IconRequest.Size.DEFAULT);
+    }
+
+    private String getTitleForDisplay(String url, String title) {
+        Windows.ContentType contentType = UrlUtils.getContentType(url);
+        if (contentType == Windows.ContentType.WEB_CONTENT) {
+            return StringUtils.isEmpty(title) ? UrlUtils.stripCommonSubdomains(UrlUtils.getHost(url)) : title;
+        }
+        return getContext().getString(contentType.titleResId);
     }
 
     @Override

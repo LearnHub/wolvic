@@ -239,29 +239,79 @@ namespace crow {
             },
     };
 
-    // Pico controller: this definition was created for the Pico 4, but the Neo 3 will likely also be compatible
-    const OpenXRInputMapping Pico4xOld {
-            "/interaction_profiles/pico/neo3_controller",
-            "vr_controller_pico4_left.obj",
-            "vr_controller_pico4_right.obj",
-            device::Pico4x,
-            std::vector<OpenXRInputProfile> { "pico-4", "generic-trigger-squeeze-thumbstick" },
+    const OpenXRInputMapping PfdmYVR1 {
+            "/interaction_profiles/yvr/touch_controller_yvr",
+            "vr_controller_yvr_touch_left.obj",
+            "vr_controller_yvr_touch_right.obj",
+            device::PfdmYVR1,
+            std::vector<OpenXRInputProfile> {"yvr-touch", "generic-trigger-squeeze-thumbstick" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Value, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
                     { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::ButtonX, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
-                    { OpenXRButtonType::ButtonY, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left,  },
-                    { OpenXRButtonType::ButtonA, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
-                    { OpenXRButtonType::ButtonB, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
-                    { OpenXRButtonType::Back, kPathBack, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
+                    { OpenXRButtonType::ButtonA, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
+                    { OpenXRButtonType::ButtonB, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left,  },
+                    { OpenXRButtonType::ButtonX, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::ButtonY, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
             },
             std::vector<OpenXRAxis> {
                     { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },
             },
             std::vector<OpenXRHaptic> {
                     { kPathHaptic, OpenXRHandFlags::Both },
+            }
+    };
+
+    const OpenXRInputMapping PfdmYVR2 {
+            "/interaction_profiles/yvr/touch_controller_yvr",
+            "vr_controller_yvr_touch_left.obj",
+            "vr_controller_yvr_touch_right.obj",
+            device::PfdmYVR2,
+            std::vector<OpenXRInputProfile> {"yvr-touch", "generic-trigger-squeeze-thumbstick" },
+            std::vector<OpenXRButton> {
+                    { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::ButtonA, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
+                    { OpenXRButtonType::ButtonB, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left,  },
+                    { OpenXRButtonType::ButtonX, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::ButtonY, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
             },
+            std::vector<OpenXRAxis> {
+                    { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },
+            },
+            std::vector<OpenXRHaptic> {
+                    { kPathHaptic, OpenXRHandFlags::Both },
+            }
+    };
+
+    const OpenXRInputMapping PfdmMR {
+            "/interaction_profiles/yvr/touch_controller_yvr",
+            "vr_controller_yvr_touch_v2_left.obj",
+            "vr_controller_yvr_touch_v2_right.obj",
+            device::PfdmMR,
+            std::vector<OpenXRInputProfile> { "yvr-touch-v2", "generic-trigger-squeeze-thumbstick" },
+            std::vector<OpenXRButton> {
+                    { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Squeeze, kPathSqueeze, OpenXRButtonFlags::Click, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Thumbstick, kPathThumbstick, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::ButtonA, kPathButtonX, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left },
+                    { OpenXRButtonType::ButtonB, kPathButtonY, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Left,  },
+                    { OpenXRButtonType::ButtonX, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::ButtonY, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
+                    { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
+                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
+            },
+            std::vector<OpenXRAxis> {
+                    { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },
+            },
+            std::vector<OpenXRHaptic> {
+                    { kPathHaptic, OpenXRHandFlags::Both },
+            }
     };
 
     const OpenXRInputMapping Pico4x {
@@ -289,7 +339,7 @@ namespace crow {
     };
 
     const OpenXRInputMapping Pico4U {
-            "/interaction_profiles/bytedance/pico4_controller",
+            "/interaction_profiles/bytedance/pico4s_controller",
             "vr_controller_pico4u_left.obj",
             "vr_controller_pico4u_right.obj",
             device::Pico4U,
@@ -500,8 +550,8 @@ namespace crow {
             },
     };
 
-    const std::array<OpenXRInputMapping, 16> OpenXRInputMappings {
-            OculusTouch, OculusTouch2, MetaQuestTouchPro, Pico4U, Pico4x, Pico4xOld, PicoNeo3, Hvr6DOF, Hvr3DOF, LenovoVRX, MagicLeap2, MetaTouchPlus, SkyworthAVN, HandInteraction, MSFTHandInteraction, KHRSimple
+    const std::array<OpenXRInputMapping, 18> OpenXRInputMappings {
+            OculusTouch, OculusTouch2, MetaQuestTouchPro, Pico4U, Pico4x, PicoNeo3, PfdmYVR1, PfdmYVR2, PfdmMR, Hvr6DOF, Hvr3DOF, LenovoVRX, MagicLeap2, MetaTouchPlus, SkyworthAVN, HandInteraction, MSFTHandInteraction, KHRSimple
     };
 
 } // namespace crow

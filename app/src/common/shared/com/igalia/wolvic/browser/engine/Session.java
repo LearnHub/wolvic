@@ -738,6 +738,10 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
 
     public String getHomeUri() {
         String homepage = SettingsStore.getInstance(mContext).getHomepage();
+        WSession wSession = getWSession();
+        if (wSession != null) {
+            homepage = UrlUtils.urlForText(mContext, homepage, wSession.getUrlUtilsVisitor());
+        }
         if (homepage.equals(mContext.getString(R.string.HOMEPAGE_URL)) && mState.mRegion != null) {
             homepage = homepage + "?region=" + mState.mRegion;
         }
@@ -1172,7 +1176,7 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
             }
         }
 
-        if (mContext.getString(R.string.about_private_browsing).equalsIgnoreCase(uri)) {
+        if (UrlUtils.isPrivateUrl(uri) || mContext.getString(R.string.about_private_browsing).equalsIgnoreCase(uri)) {
             return WResult.deny();
         }
 
@@ -1211,10 +1215,6 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
                     result.complete(allowed.get() ? WAllowOrDeny.ALLOW : WAllowOrDeny.DENY);
                 }
             }
-        }
-
-        if (UrlUtils.isAboutPage(aRequest.uri)) {
-            return WResult.deny();
         }
 
         return result;
@@ -1420,6 +1420,20 @@ public class Session implements WContentBlocking.Delegate, WSession.NavigationDe
     public void onExternalResponse(@NonNull WSession aSession, @NonNull WWebResponse webResponseInfo) {
         for (WSession.ContentDelegate listener : mContentListeners) {
             listener.onExternalResponse(aSession, webResponseInfo);
+        }
+    }
+
+    @Override
+    public void onShowPaymentHandler(@NonNull final WSession aSession, @NonNull WDisplay aDisplay, @NonNull OnPaymentHandlerCallback callback) {
+        for (WSession.ContentDelegate listener : mContentListeners) {
+            listener.onShowPaymentHandler(aSession, aDisplay, callback);
+        }
+    }
+
+    @Override
+    public void onHidePaymentHandler(@NonNull final WSession aSession) {
+        for (WSession.ContentDelegate listener : mContentListeners) {
+            listener.onHidePaymentHandler(aSession);
         }
     }
 

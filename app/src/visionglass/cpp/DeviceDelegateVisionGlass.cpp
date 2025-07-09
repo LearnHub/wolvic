@@ -55,7 +55,7 @@ struct DeviceDelegateVisionGlass::State {
   crow::ElbowModelPtr elbow;
   std::unique_ptr<OneEuroFilterQuaternion> orientationFilter;
   vrb::Quaternion headOrientation;
-  vrb::Quaternion controllerCalibration;
+  vrb::Quaternion headToControllerRelativeRotation;
   State()
       : renderMode(device::RenderMode::StandAlone)
       , clicked(false)
@@ -183,9 +183,17 @@ DeviceDelegateVisionGlass::SetReorientTransform(const vrb::Matrix& aMatrix) {
 }
 
 void
-DeviceDelegateVisionGlass::Reorient() {
-    vrb::Matrix head = GetHeadTransform();
-    m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixOnHeadLock(head, kAverageHeight);
+DeviceDelegateVisionGlass::Reorient(const vrb::Matrix& transform, ReorientMode mode) {
+  switch (mode) {
+    case ReorientMode::SIX_DOF:
+      m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixOnHeadLock(transform, GetHeadTransform().GetTranslation());
+      break;
+    case ReorientMode::NO_ROLL:
+      m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixWithoutRoll(transform, GetHeadTransform().GetTranslation());
+      break;
+    default:
+      VRB_ERROR("Unsupported reorient mode %d", mode);
+  }
 }
 
 void
@@ -273,7 +281,7 @@ DeviceDelegateVisionGlass::StartFrame(const FramePrediction aPrediction) {
       timestamp = m.context.lock()->GetTimestamp() * 1e9;
   }
   float* filteredOrientation = m.orientationFilter->filter(timestamp, m.controllerOrientation.Data());
-  auto calibratedControllerOrientation = m.controllerCalibration * vrb::Quaternion(filteredOrientation);
+  auto calibratedControllerOrientation = m.headToControllerRelativeRotation * vrb::Quaternion(filteredOrientation);
   vrb::Matrix transformMatrix = vrb::Matrix::Rotation(calibratedControllerOrientation);
   auto pointerTransform = m.elbow->GetTransform(ElbowModel::HandEnum::None, headTransform, transformMatrix);
   m.controller->SetTransform(kControllerIndex, pointerTransform);
@@ -365,18 +373,18 @@ DeviceDelegateVisionGlass::ControllerButtonPressed(const bool aDown) {
 }
 
 void
-DeviceDelegateVisionGlass::setHead(const float aX, const float aY, const float aZ, const float aW) {
+DeviceDelegateVisionGlass::setHead(const double aX, const double aY, const double aZ, const double aW) {
   m.headOrientation = vrb::Quaternion(aX, aY, aZ, aW);
 }
 
 void
-DeviceDelegateVisionGlass::setControllerOrientation(const float aX, const float aY, const float aZ, const float aW) {
+DeviceDelegateVisionGlass::setControllerOrientation(const double aX, const double aY, const double aZ, const double aW) {
     m.controllerOrientation = vrb::Quaternion(aX, aY, aZ, aW);
 }
 
 void
 DeviceDelegateVisionGlass::CalibrateController() {
-  m.controllerCalibration = CorrectedHeadOrientation();
+  m.headToControllerRelativeRotation = CorrectedHeadOrientation() * m.controllerOrientation.Inverse();
   m.SetupOrientationFilter();
 }
 

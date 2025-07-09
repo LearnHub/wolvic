@@ -6,16 +6,19 @@
 package com.igalia.wolvic.ui.widgets.settings;
 
 import android.content.Context;
+import android.graphics.Point;
 import android.view.LayoutInflater;
 
 import androidx.databinding.DataBindingUtil;
 
 import com.igalia.wolvic.R;
+import com.igalia.wolvic.audio.AudioEngine;
 import com.igalia.wolvic.browser.SettingsStore;
 import com.igalia.wolvic.databinding.OptionsControllerBinding;
 import com.igalia.wolvic.ui.views.settings.RadioGroupSetting;
 import com.igalia.wolvic.ui.views.settings.SwitchSetting;
 import com.igalia.wolvic.ui.widgets.WidgetManagerDelegate;
+import com.igalia.wolvic.ui.widgets.WidgetPlacement;
 
 class ControllerOptionsView extends SettingsView {
 
@@ -47,6 +50,10 @@ class ControllerOptionsView extends SettingsView {
         // Footer
         mBinding.footerLayout.setFooterButtonClickListener(v -> resetOptions());
 
+        int selectionMethod = SettingsStore.getInstance(getContext()).getWindowSelectionMethod();
+        mBinding.windowSelectionRadio.setOnCheckedChangeListener(mWindowSelectionMethodListener);
+        setWindowSelectionMethod(mBinding.windowSelectionRadio.getIdForValue(selectionMethod), false);
+
         int color = SettingsStore.getInstance(getContext()).getPointerColor();
         mBinding.pointerColorRadio.setOnCheckedChangeListener(mPointerColorListener);
         setPointerColor(mBinding.pointerColorRadio.getIdForValue(color), false);
@@ -54,6 +61,9 @@ class ControllerOptionsView extends SettingsView {
         int scrollDirection = SettingsStore.getInstance(getContext()).getScrollDirection();
         mBinding.scrollDirectionRadio.setOnCheckedChangeListener(mScrollDirectionListener);
         setScrollDirection(mBinding.scrollDirectionRadio.getIdForValue(scrollDirection), false);
+
+        mBinding.soundEffectSwitch.setOnCheckedChangeListener(mSoundEffectListener);
+        setSoundEffect(SettingsStore.getInstance(getContext()).isAudioEnabled(), false);
 
         mBinding.hapticFeedbackSwitch.setOnCheckedChangeListener(mHapticFeedbackListener);
         setHapticFeedbackEnabled(SettingsStore.getInstance(getContext()).isHapticFeedbackEnabled(), false);
@@ -73,15 +83,29 @@ class ControllerOptionsView extends SettingsView {
     }
 
     private void resetOptions() {
+        if (!mBinding.windowSelectionRadio.getValueForId(mBinding.windowSelectionRadio.getCheckedRadioButtonId()).equals(SettingsStore.WINDOW_SELECTION_METHOD_DEFAULT)) {
+            setWindowSelectionMethod(mBinding.windowSelectionRadio.getIdForValue(SettingsStore.WINDOW_SELECTION_METHOD_DEFAULT), true);
+        }
         if (!mBinding.pointerColorRadio.getValueForId(mBinding.pointerColorRadio.getCheckedRadioButtonId()).equals(SettingsStore.POINTER_COLOR_DEFAULT_DEFAULT)) {
             setPointerColor(mBinding.pointerColorRadio.getIdForValue(SettingsStore.POINTER_COLOR_DEFAULT_DEFAULT), true);
         }
         if (!mBinding.scrollDirectionRadio.getValueForId(mBinding.scrollDirectionRadio.getCheckedRadioButtonId()).equals(SettingsStore.SCROLL_DIRECTION_DEFAULT)) {
             setScrollDirection(mBinding.scrollDirectionRadio.getIdForValue(SettingsStore.SCROLL_DIRECTION_DEFAULT), true);
         }
+        setSoundEffect(SettingsStore.AUDIO_ENABLED, true);
         setHapticFeedbackEnabled(SettingsStore.HAPTIC_FEEDBACK_ENABLED, true);
         setPointerMode(SettingsStore.POINTER_MODE_DEFAULT, true);
         setHandTrackingEnabled(true, true);
+    }
+
+    private void setWindowSelectionMethod(int checkedId, boolean doApply) {
+        mBinding.windowSelectionRadio.setOnCheckedChangeListener(null);
+        mBinding.windowSelectionRadio.setChecked(checkedId, doApply);
+        mBinding.windowSelectionRadio.setOnCheckedChangeListener(mWindowSelectionMethodListener);
+
+        if (doApply) {
+            SettingsStore.getInstance(getContext()).setWindowSelectionMethod((int)mBinding.windowSelectionRadio.getValueForId(checkedId));
+        }
     }
 
     private void setPointerColor(int checkedId, boolean doApply) {
@@ -102,6 +126,17 @@ class ControllerOptionsView extends SettingsView {
 
         if (doApply) {
             SettingsStore.getInstance(getContext()).setScrollDirection((int)mBinding.scrollDirectionRadio.getValueForId(checkedId));
+        }
+    }
+
+    private void setSoundEffect(boolean value, boolean doApply) {
+        mBinding.soundEffectSwitch.setOnCheckedChangeListener(null);
+        mBinding.soundEffectSwitch.setValue(value, false);
+        mBinding.soundEffectSwitch.setOnCheckedChangeListener(mSoundEffectListener);
+
+        if (doApply) {
+            SettingsStore.getInstance(getContext()).setAudioEnabled(value);
+            AudioEngine.fromContext(getContext()).setEnabled(value);
         }
     }
 
@@ -136,12 +171,20 @@ class ControllerOptionsView extends SettingsView {
         }
     }
 
+    private RadioGroupSetting.OnCheckedChangeListener mWindowSelectionMethodListener = (radioGroup, checkedId, doApply) -> {
+        setWindowSelectionMethod(checkedId, doApply);
+    };
+
     private RadioGroupSetting.OnCheckedChangeListener mPointerColorListener = (radioGroup, checkedId, doApply) -> {
         setPointerColor(checkedId, doApply);
     };
 
     private RadioGroupSetting.OnCheckedChangeListener mScrollDirectionListener = (radioGroup, checkedId, doApply) -> {
         setScrollDirection(checkedId, doApply);
+    };
+
+    private SwitchSetting.OnCheckedChangeListener mSoundEffectListener = (compoundButton, enabled, apply) -> {
+        setSoundEffect(enabled, true);
     };
 
     private SwitchSetting.OnCheckedChangeListener mHapticFeedbackListener = (compoundButton, enabled, apply) ->
@@ -165,6 +208,12 @@ class ControllerOptionsView extends SettingsView {
 
     private SwitchSetting.OnCheckedChangeListener mHandtrackingListener = (compoundButton, enabled, apply) ->
             setHandTrackingEnabled(enabled, true);
+
+    @Override
+    public Point getDimensions() {
+        return new Point( WidgetPlacement.dpDimension(getContext(), R.dimen.settings_dialog_width),
+                WidgetPlacement.dpDimension(getContext(), R.dimen.controller_options_height));
+    }
 
     @Override
     protected SettingViewType getType() {

@@ -31,6 +31,7 @@ public class AudioEngine {
         BACK,
         EXIT,
         ERROR,
+        KEYBOARD,
         AMBIENT(SoundType.FIELD);
 
         private SoundType mType;
@@ -48,7 +49,7 @@ public class AudioEngine {
     }
 
     public interface AudioTheme {
-        String getPath(Sound aSound);
+        int getResourceId(Sound aSound);
     }
 
     public interface AudioEngineImpl {

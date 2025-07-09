@@ -14,6 +14,13 @@ namespace crow {
 // Otherwise single (slow) clicks would easily trigger scrolling.
 const XrDuration kEyeTrackingScrollThreshold = 250000000;
 
+// Threshold to consider a trigger value as a click
+// Used when devices don't map the click value for triggers;
+const float kControllerClickThreshold = 0.25f;
+// Threshold to consider a pinch as a click. Hand tracking is not as precise as controllers, that's
+// why we need to be extra careful in order not to generate false positives.
+const float kPinchThreshold = 0.91f;
+
 OpenXRInputSourcePtr OpenXRInputSource::Create(XrInstance instance, XrSession session, OpenXRActionSet& actionSet, const XrSystemProperties& properties, OpenXRHandFlags handeness, int index)
 {
     OpenXRInputSourcePtr input(new OpenXRInputSource(instance, session, actionSet, properties, handeness, index));
@@ -31,6 +38,7 @@ OpenXRInputSource::OpenXRInputSource(XrInstance instance, XrSession session, Ope
     , mIndex(index)
 {
   elbow = ElbowModel::Create();
+  mClickThreshold = kControllerClickThreshold;
 }
 
 OpenXRInputSource::~OpenXRInputSource()
@@ -130,13 +138,8 @@ XrResult OpenXRInputSource::Initialize()
                                                                       &mHandTracker));
 
         mSupportsHandJointsMotionRangeInfo = OpenXRExtensions::IsExtensionSupported(XR_EXT_HAND_JOINTS_MOTION_RANGE_EXTENSION_NAME);
-
-#if defined(PICOXR)
-        // Pico's runtime does not advertise it but it does work.
-        mSupportsFBHandTrackingAim = true;
-#else
         mSupportsFBHandTrackingAim = OpenXRExtensions::IsExtensionSupported(XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME);
-#endif
+
         if (!mIsHandInteractionSupported) {
             if (mSupportsFBHandTrackingAim) {
                 mGestureManager = std::make_unique<OpenXRGestureManagerFBHandTrackingAim>();
@@ -262,14 +265,12 @@ std::optional<OpenXRInputSource::OpenXRButtonState> OpenXRInputSource::GetButton
     };
 
     queryActionState(button.flags & OpenXRButtonFlags::Click, actions.click, result.clicked, false);
-    bool clickedHasValue = hasValue;
     queryActionState(button.flags & OpenXRButtonFlags::Touch, actions.touch, result.touched, result.clicked);
     queryActionState(button.flags & OpenXRButtonFlags::Value, actions.value, result.value, result.clicked ? 1.0 : 0.0);
     queryActionState(button.flags & OpenXRButtonFlags::Ready, actions.ready, result.ready, true);
 
-    if (!clickedHasValue && result.value > kClickThreshold) {
-      result.clicked = true;
-    }
+    if (!result.clicked)
+      result.clicked = result.value > mClickThreshold;
 
     if (result.clicked) {
       VRB_DEBUG("OpenXR button clicked: %s", OpenXRButtonTypeNames->at((int) button.type));
@@ -794,17 +795,17 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         return;
     }
 
-#if defined(PICOXR)
-    // Pico does continuously track the controllers even when left alone. That's why we return
-    // always true so that we always check hand tracking just in case.
-    bool isControllerUnavailable = true;
-#else
     bool isControllerUnavailable = (poseLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) == 0;
-#endif
-
     auto gotHandTrackingInfo = false;
     auto handFacesHead = false;
-    if (isControllerUnavailable || mUsingHandInteractionProfile) {
+#if defined(PICOXR)
+    // Pico does continuously track the controllers even when left alone. That's why we return
+    // always true so that we always check hand tracking just in case (unless it's disabled).
+    bool mustAlwaysCheckHandTracking = handTrackingEnabled;
+#else
+    bool mustAlwaysCheckHandTracking = false;
+#endif
+    if (isControllerUnavailable || mUsingHandInteractionProfile || mustAlwaysCheckHandTracking) {
         if (!handTrackingEnabled) {
             delegate.SetEnabled(mIndex, false);
             return;
@@ -815,12 +816,16 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
             std::vector<float> jointRadii;
             PopulateHandJointLocations(renderMode, jointTransforms, jointRadii);
             if (!mIsHandInteractionSupported) {
+                mClickThreshold = kPinchThreshold;
                 EmulateControllerFromHand(renderMode, frameState.predictedDisplayTime, head, jointTransforms[HAND_JOINT_FOR_AIM], pointerMode, usingEyeTracking, eyeTrackingTransform, delegate);
                 delegate.SetHandJointLocations(mIndex, std::move(jointTransforms), std::move(jointRadii));
                 return;
             }
             handFacesHead = OpenXRGestureManager::handFacesHead(jointTransforms[HAND_JOINT_FOR_AIM], head);
             delegate.SetHandJointLocations(mIndex, std::move(jointTransforms), std::move(jointRadii));
+        } else if (isControllerUnavailable) {
+            delegate.SetEnabled(mIndex, false);
+            return;
         }
     }
 
@@ -831,6 +836,7 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
 
     bool usingTrackedPointer = pointerMode == DeviceDelegate::PointerMode::TRACKED_POINTER;
     bool hasAim = isPoseActive && (poseLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT);
+    mClickThreshold = mUsingHandInteractionProfile ? kPinchThreshold : kControllerClickThreshold;
 
     // When using hand interaction profiles we still get valid aim even if the hand is facing
     // the head like when performing system gestures. In that case we don't want to show the beam.
@@ -868,7 +874,12 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
     delegate.SetHandActionEnabled(mIndex, isHandActionEnabled);
 
     device::CapabilityFlags flags = device::Orientation;
+#ifdef LYNX
+    // Lynx runtime incorrectly never sets the TRACKED bit.
+    const bool positionTracked = poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT;
+#else
     const bool positionTracked = poseLocation.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
+#endif
     flags |= positionTracked ? device::Position : device::PositionEmulated;
 
     vrb::Matrix pointerTransform = XrPoseToMatrix(poseLocation.pose);
@@ -937,7 +948,7 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         auto immersiveButton = GetImmersiveButton(button);
 
         if (isHandActionEnabled && button.type == OpenXRButtonType::Trigger) {
-            delegate.SetButtonState(mIndex, ControllerDelegate::BUTTON_APP, -1, state->value >= kClickThreshold,
+            delegate.SetButtonState(mIndex, ControllerDelegate::BUTTON_APP, -1, state->value >= mClickThreshold,
                                     state->value > 0, 1.0);
         } else {
             delegate.SetButtonState(mIndex, browserButton, immersiveButton.has_value() ? immersiveButton.value() : -1,

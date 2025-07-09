@@ -15,9 +15,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
 import androidx.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -146,13 +144,13 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
                 case MotionEvent.ACTION_POINTER_DOWN:
                 case MotionEvent.ACTION_DOWN:
                     v.setPressed(true);
-                    mWidgetManager.startWidgetMove(mWidgetManager.getWindows().getFrontWindow(), WidgetManagerDelegate.WIDGET_MOVE_BEHAVIOUR_WINDOW);
+                    mWidgetManager.startWindowMove();
                     break;
                 case MotionEvent.ACTION_POINTER_UP:
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
                     v.setPressed(false);
-                    mWidgetManager.finishWidgetMove();
+                    mWidgetManager.finishWindowMove();
                     break;
                 default:
                     return false;
@@ -1024,7 +1022,10 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
             updateTrackingProtection();
         }
 
-        mBinding.navigationBarNavigation.reloadButton.setEnabled(!UrlUtils.isPrivateAboutPage(getContext(), url));
+        mBinding.navigationBarNavigation.reloadButton.setEnabled(
+                mViewModel.getCurrentContentType().getValue() != Windows.ContentType.NEW_TAB
+                        && !mViewModel.getIsNativeContentVisible().getValue().get()
+                        && !UrlUtils.isPrivateAboutPage(getContext(), url));
     }
 
     // Content delegate
@@ -1113,7 +1114,8 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
     public void onVoiceSearchClicked() {
         if (mVoiceSearchWidget == null) {
             mVoiceSearchWidget = new VoiceSearchWidget(getContext());
-            mVoiceSearchWidget.setDelegate(this);
+            mVoiceSearchWidget.setInputMode(VoiceSearchWidget.InputMode.SEARCH_INPUT);
+            mVoiceSearchWidget.setVoiceSearchDelegate(this);
             mVoiceSearchWidget.setDelegate(() -> {
                 mVoiceSearchWidget.hide(UIWidget.REMOVE_WIDGET);
                 mVoiceSearchWidget.releaseWidget();
@@ -1346,8 +1348,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
             @Override
             public void onFindInPage() {
                 hideMenu();
-                mAttachedWindow.hidePanel();
-
+                mAttachedWindow.closeLibrary();
                 mViewModel.setIsFindInPage(true);
             }
 
@@ -1390,7 +1391,7 @@ public class NavigationBarWidget extends UIWidget implements WSession.Navigation
             public void onAddons() {
                 hideMenu();
 
-                mAttachedWindow.showPanel(Windows.ContentType.ADDONS);
+                mAttachedWindow.showLibrary(Windows.ContentType.ADDONS);
             }
 
             @Override

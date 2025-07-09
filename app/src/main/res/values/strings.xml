@@ -342,6 +342,13 @@
     the keyboard languages panel list. -->
     <string name="settings_language_korean">Korean</string>
 
+
+    <!-- This string is used to label a radio button in the 'Settings' Voice Search and the Display Language dialogs that, when pressed,
+    changes the app and the language of the speech-recognition-based search to 'Ukrainian'.
+    The string is also used in the keyboard space bar to show the current keyboard language and in
+    the keyboard languages panel list. --> 
+    <string name="settings_language_ukrainian">Ukrainian</string>
+
     <!-- This string is used to label a radio button in the 'Settings' Voice Search and the Display Language dialogs that, when pressed,
     changes the app and the language of the speech-recognition-based search to 'Italian'.
     The string is also used in the keyboard space bar to show the current keyboard language and in
@@ -523,6 +530,10 @@
          and is used to customize the windows distance. -->
     <string name="display_options_windows_distance">Windows Distance</string>
 
+    <!-- This string labels an On/Off switch in the 'Display Options' dialog and is used to choose
+         whether new tabs will be activated immediately or they will remain in the background. -->
+    <string name="display_options_open_tabs_in_background">Open new tabs in the background</string>
+
     <!-- This string labels an On/Off switch in the developer options dialog
          and is used to customize background environments of the app. -->
     <string name="developer_options_env_override">Enable Environment Override</string>
@@ -616,6 +627,15 @@
 
     <!-- This string is used to label the radio buttons that set the default size of windows. -->
     <string name="window_size_preset">%1$d×%2$d</string>
+
+    <!-- This string is used to label the homepage radio button that sets the homepage to be Wolvic homepage. -->
+    <string name="developer_options_homepage_wolvic">wolvic.com</string>
+
+    <!-- This string is used to label the homepage radio button that sets the homepage to be the New Tab page. -->
+    <string name="developer_options_homepage_new_tab">New Tab</string>
+
+    <!-- This string is used to label the homepage radio button that allows users to set the homepage they want. -->
+    <string name="developer_options_homepage_other">Other</string>
 
     <!-- This string is used to label a set of radio buttons that allow the user to change the
          User-Agent (UA) string of the browser. -->
@@ -1788,6 +1808,15 @@
          '%1$s' will be replaced at runtime with the search engine name. -->
     <string name="context_menu_web_search">Search with %1$s</string>
 
+    <!-- Generic text for opening a new tab. -->
+    <string name="new_tab">New tab</string>
+
+    <!-- Generic text for opening a new private tab. -->
+    <string name="new_private_tab">New private tab</string>
+
+    <!-- Generic text for closing a tab. -->
+    <string name="close_tab">Close tab</string>
+
     <!-- This string is for the tooltip that appears when the user hovers over the 'Bookmark' icon in the
          browser's navigation bar. The button it labels, when pressed, bookmarks the currently open web site. -->
     <string name="bookmark_tooltip">Bookmark this page</string>
@@ -1962,6 +1991,9 @@
 
     <!-- This string is displayed in the URL bar when the user is in the Library panel -->
     <string name="url_library_title">Library</string>
+
+    <!-- This string is displayed in the URL bar when the user is in the New Tab view -->
+    <string name="url_new_tab_title">New Tab</string>
 
     <!-- This string is displayed in the Clear button on top of the window when in private mode. It only appears
          when there is one window left. When clicked, it closes the private session -->
@@ -2573,10 +2605,14 @@ the Select` button. When clicked it bookmarks all the previously selected tabs -
     <string name="vision_glass_error_message">An error happened.\nPlease try again.</string>
     <!-- Vision Glass: instruct the user to point the phone straight ahead to re-align the controller. -->
     <string name="vision_glass_realign_dialog_explanation">To set up the controller, please point your phone straight ahead and tap the button.</string>
-    <string name="controller_options_pointer_mode">Gaze Mode</string>
-    <string name="developer_options_pointer_mode_tracked_pointer">Pointer</string>
-    <string name="developer_options_pointer_mode_tracked_eye">Eye Tracking</string>
+    <string name="controller_options_pointer_mode">Pointer control mode</string>
+    <string name="developer_options_pointer_mode_tracked_pointer">With controller or hand</string>
+    <string name="developer_options_pointer_mode_tracked_eye">With eye tracking</string>
     <string name="eye_tracking_permission_title">Eye Tracking Permissions</string>
     <string name="eye_tracking_permission_message">Enabling eye tracking for browsing the web poses significant privacy risks. This technology captures where and how long a user looks at specific parts of a webpage, revealing intimate details about their interests and emotional reactions. Advertisers and third parties can exploit this data for intrusive marketing and profiling. Moreover, eye movement patterns could infer sensitive information such as medical conditions, cognitive states, or personal habits. Therefore, it is crucial to consider the privacy implications before granting access to eye tracking information to webpages.</string>
+    <string name="controller_options_window_selection">Window Selection Method</string>
+    <string name="controller_options_click_to_select">Click</string>
+    <string name="controller_options_hover_to_select">Hover</string>
+    <string name="announcements_title">Announcements</string>
 
 </resources>

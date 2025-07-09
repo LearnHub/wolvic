@@ -11,7 +11,7 @@ import com.igalia.wolvic.BuildConfig;
 
 public class DeviceType {
     // These values need to match those in Device.h
-    @IntDef(value = {Unknown, OculusGo, OculusQuest, ViveFocus, ViveFocusPlus, PicoNeo2, PicoG2, PicoNeo3, OculusQuest2, HVR3DoF, HVR6DoF, Pico4x, MetaQuestPro, LynxR1, LenovoA3, LenovoVRX, MagicLeap2, MetaQuest3, VisionGlass, Pico4U, SkyworthAVN})
+    @IntDef(value = {Unknown, OculusGo, OculusQuest, ViveFocus, ViveFocusPlus, PicoNeo2, PicoG2, PicoNeo3, OculusQuest2, HVR3DoF, HVR6DoF, Pico4x, MetaQuestPro, LynxR1, LenovoA3, LenovoVRX, MagicLeap2, MetaQuest3, VisionGlass, Pico4U, SkyworthAVN, PfdmYVR1, PfdmYVR2, PfdmMR})
     public @interface Type {}
     public static final int Unknown = 0;
     public static final int OculusGo = 1;
@@ -34,6 +34,9 @@ public class DeviceType {
     public static final int VisionGlass = 19;
     public static final int Pico4U = 20;
   public static final int SkyworthAVN = 21;
+    public static final int PfdmYVR1 = 22;
+    public static final int PfdmYVR2 = 23;
+    public static final int PfdmMR = 24;
 
     private static @Type int mType = Unknown;
     private static String mDeviceName = "Unknown Device";
@@ -90,6 +93,14 @@ public class DeviceType {
                 break;
             case SkyworthAVN:
                 mDeviceName = "Skyworth XR2 AVN";
+            case PfdmYVR1:
+                mDeviceName = "PFDM YVR1";
+                break;
+            case PfdmYVR2:
+                mDeviceName = "PFDM YVR2";
+                break;
+            case PfdmMR:
+                mDeviceName = "PFDM MR";
                 break;
             default:
                 mDeviceName = "Unknown Device";
@@ -110,10 +121,6 @@ public class DeviceType {
         return BuildConfig.FLAVOR_platform.equalsIgnoreCase("oculusvr") || BuildConfig.FLAVOR_platform.equalsIgnoreCase("oculusvrStore");
     }
 
-    public static boolean isWaveBuild() {
-        return BuildConfig.FLAVOR_platform.toLowerCase().contains("wavevr");
-    }
-
     public static boolean isHVRBuild() {
         return BuildConfig.FLAVOR_platform.toLowerCase().contains("hvr");
     }
@@ -129,6 +136,10 @@ public class DeviceType {
     public static boolean isSnapdragonSpaces() {
         return BuildConfig.FLAVOR_platform.toLowerCase().contains("spaces");
     }
+    
+    public static boolean isPfdmXR() {
+        return BuildConfig.FLAVOR_platform.toLowerCase().contains("pfdmxr");
+    }
 
     public static String getDeviceTypeId() {
         String type = BuildConfig.FLAVOR_platform;
@@ -136,12 +147,12 @@ public class DeviceType {
             type = "oculusvr";
         } else if (DeviceType.isPicoXR()) {
             type = "picoxr";
-        } else if (DeviceType.isWaveBuild()) {
-            type = "wavevrStore";
         } else if (DeviceType.isLynx()) {
             type = "lynx";
         } else if (DeviceType.isSnapdragonSpaces()) {
             type = "spaces";
+        } else if (DeviceType.isPfdmXR()) {
+            type = "pfdmxr";
         }
 
         return type;

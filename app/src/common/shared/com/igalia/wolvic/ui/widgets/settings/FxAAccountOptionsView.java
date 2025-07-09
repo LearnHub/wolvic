@@ -86,7 +86,7 @@ class FxAAccountOptionsView extends SettingsView {
         mBinding.deviceNameEdit.setHint1(DeviceType.getDeviceName(getContext()));
         mBinding.deviceNameEdit.setDefaultFirstValue(DeviceType.getDeviceName(getContext()));
         mBinding.deviceNameEdit.setFirstText(SettingsStore.getInstance(getContext()).getDeviceName());
-        mBinding.deviceNameEdit.setOnClickListener(mDeviceNameListener);
+        mBinding.deviceNameEdit.setOnSaveClickedListener(mDeviceNameListener);
         setDeviceName(SettingsStore.getInstance(getContext()).getDeviceName(), false);
 
         mBinding.setIsSyncing(mAccounts.isSyncing());
@@ -213,7 +213,7 @@ class FxAAccountOptionsView extends SettingsView {
     }
 
     private void setDeviceName(String newDeviceName, boolean doApply) {
-        mBinding.deviceNameEdit.setOnClickListener(null);
+        mBinding.deviceNameEdit.setOnSaveClickedListener(null);
         if (newDeviceName.isEmpty()) {
             newDeviceName = DeviceType.getDeviceName(getContext());
         }
@@ -235,7 +235,7 @@ class FxAAccountOptionsView extends SettingsView {
             }
         }
         mBinding.deviceNameEdit.setFirstText(newDeviceName);
-        mBinding.deviceNameEdit.setOnClickListener(mDeviceNameListener);
+        mBinding.deviceNameEdit.setOnSaveClickedListener(mDeviceNameListener);
     }
 
     void updateCurrentAccountState() {
@@ -283,6 +283,8 @@ class FxAAccountOptionsView extends SettingsView {
     private void sync(View view) {
         mAccounts.syncNowAsync(SyncReason.User.INSTANCE, false);
         mAccounts.updateProfileAsync();
+        mAccounts.refreshDevicesAsync();
+        mAccounts.pollForEventsAsync();
     }
 
     private void signOut(View view) {

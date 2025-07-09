@@ -27,8 +27,8 @@ public class MKSpeechRecognizer implements SpeechRecognizer, ISpeechRecognitionL
 
     protected final String LOGTAG = SystemUtils.createLogtag(this.getClass());
     private MKSpeechService mkSpeechService;
-    private @Nullable
-    SpeechRecognizer.Callback mCallback;
+    private @Nullable SpeechRecognizer.Callback mCallback;
+    private volatile boolean mIsActive = false;
     private static int MAX_CLIPPING = 10000;
     private static int MAX_DB = 130;
     private static int MIN_DB = 50;
@@ -59,6 +59,13 @@ public class MKSpeechRecognizer implements SpeechRecognizer, ISpeechRecognitionL
 
     @Override
     public void start(@NonNull Settings settings, @NonNull Callback callback) {
+        if (mIsActive) {
+            Log.w(LOGTAG, "Recognition already active");
+            callback.onError(Callback.ERROR_TOO_MANY_REQUESTS, "Voice recognition already in progress.");
+            return;
+        }
+        mIsActive = true;
+
         mkSpeechService = MKSpeechService.getInstance();
         mCallback = callback;
         mkSpeechService.addListener(this);
@@ -88,7 +95,7 @@ public class MKSpeechRecognizer implements SpeechRecognizer, ISpeechRecognitionL
 
         if (!supportsASR(settings)) {
             callback.onError(Callback.ERROR_LANGUAGE_NOT_SUPPORTED, "language not supported");
-            stop();
+            removeListener();
         } else {
             Log.w(LOGTAG, "Starting speech recognition, language = " + settings.locale);
             mkSpeechService.start(mContext, settings.locale, key);
@@ -103,13 +110,18 @@ public class MKSpeechRecognizer implements SpeechRecognizer, ISpeechRecognitionL
     }
 
     @Override
+    public boolean isActive() {
+        return mIsActive;
+    }
+
+    @Override
     public boolean shouldDisplayStoreDataPrompt() {
         return false;
     }
 
     @Override
     public boolean isSpeechError(int code) {
-        return code == VoiceSearchWidget.State.SPEECH_ERROR.ordinal();
+        return code == VoiceSearchWidget.State.ERROR_SPEECH.ordinal();
     }
 
     @Override
@@ -138,8 +150,9 @@ public class MKSpeechRecognizer implements SpeechRecognizer, ISpeechRecognitionL
         ((Activity) mContext).runOnUiThread(runnable);
     }
 
-    public void removeListener() {
+    private void removeListener() {
         mkSpeechService.removeListener(this);
+        mIsActive = false;
     }
 
     @Override

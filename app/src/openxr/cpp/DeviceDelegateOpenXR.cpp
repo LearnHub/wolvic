@@ -189,7 +189,7 @@ struct DeviceDelegateOpenXR::State {
     if (OpenXRExtensions::IsExtensionSupported(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME)) {
         extensions.push_back(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME);
     }
-#ifdef OCULUSVR
+#if defined(OCULUSVR) || defined(PFDMXR)
     if (OpenXRExtensions::IsExtensionSupported(XR_KHR_COMPOSITION_LAYER_EQUIRECT2_EXTENSION_NAME)) {
       extensions.push_back(XR_KHR_COMPOSITION_LAYER_EQUIRECT2_EXTENSION_NAME);
     }
@@ -514,7 +514,7 @@ struct DeviceDelegateOpenXR::State {
   }
 
   XrSwapchainCreateInfo GetSwapChainCreateInfo(uint32_t w = 0, uint32_t h = 0) {
-#if OCULUSVR || SPACES
+#if OCULUSVR || SPACES || PFDMXR
     const int64_t colorFormat = GL_SRGB8_ALPHA8;
 #else
     const int64_t colorFormat = GL_RGBA8;
@@ -750,6 +750,9 @@ struct DeviceDelegateOpenXR::State {
       // is disabled we'll select 72hz which is the only one advertised by OpenXR in that case.
       case device::Pico4x:
       case device::Pico4U:
+      case device::PfdmYVR1:
+      case device::PfdmYVR2:
+      case device::PfdmMR:
         suggestedRefreshRate = 90.0;
         break;
       case device::OculusQuest:
@@ -935,9 +938,17 @@ DeviceDelegateOpenXR::SetReorientTransform(const vrb::Matrix& aMatrix) {
 }
 
 void
-DeviceDelegateOpenXR::Reorient() {
-  vrb::Matrix head = GetHeadTransform();
-  m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixOnHeadLock(head, kAverageHeight);
+DeviceDelegateOpenXR::Reorient(const vrb::Matrix& transform, ReorientMode mode) {
+  switch (mode) {
+    case ReorientMode::SIX_DOF:
+      m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixOnHeadLock(transform, GetHeadTransform().GetTranslation());
+      break;
+    case ReorientMode::NO_ROLL:
+      m.reorientMatrix = DeviceUtils::CalculateReorientationMatrixWithoutRoll(transform, GetHeadTransform().GetTranslation());
+      break;
+    default:
+      VRB_ERROR("Unsupported reorient mode %d", mode);
+  }
 }
 
 void
@@ -1069,7 +1080,7 @@ DeviceDelegateOpenXR::StartFrame(const FramePrediction aPrediction) {
     return;
   }
 
-#if OCULUSVR || PICOXR || SPACES
+#if OCULUSVR || PICOXR || SPACES || PFDMXR
   // Fix brigthness issue.
   glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 #endif
@@ -1756,8 +1767,8 @@ void DeviceDelegateOpenXR::SetHandTrackingEnabled(bool value) {
   m.handTrackingEnabled = value;
 }
 
-float DeviceDelegateOpenXR::GetSelectThreshold() {
-  return kClickThreshold;
+float DeviceDelegateOpenXR::GetSelectThreshold(int32_t aControllerIndex) {
+  return m.input->GetSelectThreshold(aControllerIndex);
 }
 
 void

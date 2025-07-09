@@ -1,21 +1,18 @@
 import groovy.json.JsonSlurper
 
 plugins {
-    id "com.jetbrains.python.envs" version "0.0.31"
+    alias libs.plugins.jetbrains.python.envs
 }
 
 apply plugin: 'com.android.application'
 apply from: "$project.rootDir/tools/gradle/versionCode.gradle"
 apply plugin: 'kotlin-android'
-apply plugin: "org.mozilla.telemetry.glean-gradle-plugin"
 
 // Apply AGConnect plugin only for Huawei builds
 if (getGradle().getStartParameter().getTaskRequests().toString() =~ /[Hh]vr/
         || getGradle().getStartParameter().getTaskRequests().toString() =~ /[Vv]isionglass/) {
     apply plugin: 'com.huawei.agconnect'
 }
-
-deps.telemetry.glean_unittests = "org.mozilla.telemetry:glean-native-forUnitTests:$project.ext.glean_version"
 
 def getGitHash = { ->
     def stdout = new ByteArrayOutputStream()
@@ -103,17 +100,17 @@ def isWebKitAvailable = {
     return false
 }
 
-// Glean: Generate markdown docs for the collected metrics.
-ext.gleanGenerateMarkdownDocs = true
-ext.gleanDocsDirectory = "$rootDir/docs"
+// Version names for Gecko and Chromium releases.
+def GECKO_RELEASE_VERSION_NAME = '1.8.1'
+def CHROMIUM_RELEASE_VERSION_NAME = '1.2.1'
 
 android {
     namespace 'com.igalia.wolvic'
-    compileSdkVersion build_versions.compile_sdk
+    compileSdkVersion 35
     defaultConfig {
         applicationId "com.avn.wolvic"
-        minSdkVersion build_versions.min_sdk
-        targetSdkVersion build_versions.target_sdk
+        minSdkVersion 24
+        targetSdkVersion 34
         versionCode generatedVersionCode
         versionName "1.8.1.15-01-25.AVN"
         buildConfigField "String", "GIT_HASH", "\"${getGitHash()}\""
@@ -128,6 +125,10 @@ android {
         buildConfigField "Float", "DEFAULT_DENSITY", "2.0f"
         buildConfigField "Float", "DEFAULT_WINDOW_DISTANCE", "0.0f"
         buildConfigField "Boolean", "ENABLE_PAGE_ZOOM", "false"
+        buildConfigField "Boolean", "USE_SOUNDPOOL", "true"
+        buildConfigField 'String', 'ANNOUNCEMENTS_ENDPOINT', '"https://igalia.github.io/wolvic/announcements.json"'
+        buildConfigField 'String', 'EXPERIENCES_ENDPOINT', '"https://igalia.github.io/wolvic/experiences.json"'
+        buildConfigField 'String', 'HEYVR_ENDPOINT', '"https://api.heyvr.io/v1/public/global/feed/featured?limit=50"'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resValue 'string', 'app_name', 'Wolvic'
@@ -161,6 +162,7 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
     }
 
     packagingOptions {
@@ -196,10 +198,22 @@ android {
     }
 
     applicationVariants.configureEach { variant ->
+        // Use different version names for release builds for each backend.
+        def backend = variant.productFlavors.get(2).name
         variant.outputs.each { output ->
+            if (variant.buildType.name == "release") {
+                if (backend == "gecko") {
+                    output.versionNameOverride = GECKO_RELEASE_VERSION_NAME
+                } else if (backend == "chromium") {
+                    output.versionNameOverride = CHROMIUM_RELEASE_VERSION_NAME
+                }
+            }
             if (shouldUseStaticVersionCode()) {
                 // Overrides any build created with a generated version code from now to 2115
                 output.versionCodeOverride = 1_99_365_2300
+            } else if (variant.productFlavors[0].name.toLowerCase().startsWith('picoxr')) {
+                // PICO store requires a slightly different version code.
+                output.versionCodeOverride = generatedVersionCode + 1900000000
             }
         }
     }
@@ -208,7 +222,8 @@ android {
         // Supported platforms
         oculusvr {
             dimension "platform"
-            targetSdkVersion build_versions.target_sdk_oculusvr
+            targetSdkVersion 32
+            buildConfigField "Boolean", "USE_SOUNDPOOL", "false"
             externalNativeBuild {
                 cmake {
                     cppFlags "-DOCULUSVR -DOPENXR"
@@ -218,39 +233,22 @@ android {
             manifestPlaceholders = [ headtrackingRequired:"false", permissionToRemove:"android.permission.RECEIVE_BOOT_COMPLETED" ]
         }
 
-        wavevr {
-            minSdkVersion build_versions.min_sdk_wave
-            targetSdkVersion build_versions.target_sdk_wave
-            dimension "platform"
-            externalNativeBuild {
-                cmake {
-                    cppFlags " -I" + file("${project.rootDir}/third_party/wavesdk/build/wvr_client-${versions.wavevr}/include").absolutePath +
-                            " -DWAVEVR"
-                    arguments "-DVR_SDK_LIB=wavevr-lib", "-DWAVEVR=ON", "-DWAVE_SDK_VERSION=${versions.wavevr}"
-                }
-            }
-            applicationIdSuffix ".internal"
-        }
-
-        wavevrStore {
-            minSdkVersion build_versions.min_sdk_wave
-            targetSdkVersion build_versions.target_sdk_wave
-            dimension "platform"
-            externalNativeBuild {
-                cmake {
-                    cppFlags " -I" + file("${project.rootDir}/third_party/wavesdk/build/wvr_client-${versions.wavevr}/include").absolutePath +
-                            " -DWAVEVR"
-                    arguments "-DVR_SDK_LIB=wavevr-lib", "-DWAVEVR=ON", "-DWAVE_SDK_VERSION=${versions.wavevr}"
-                }
-            }
-        }
-
         picoxr {
             dimension "platform"
             externalNativeBuild {
                 cmake {
                     cppFlags " -DPICOXR -DOPENXR -I" + file("src/openxr/cpp").absolutePath
                     arguments "-DVR_SDK_LIB=picoxr-lib", "-DPICOXR=ON", "-DOPENXR=ON"
+                }
+            }
+        }
+
+        pfdmxr {
+            dimension "platform"
+            externalNativeBuild {
+                cmake {
+                    cppFlags " -DPFDMXR -DOPENXR  -I" + file("src/openxr/cpp").absolutePath
+                    arguments "-DPFDMXR=ON", "-DOPENXR=ON"
                 }
             }
         }
@@ -267,7 +265,7 @@ android {
 
         spaces {
             dimension "platform"
-            targetSdkVersion build_versions.target_sdk_spaces
+            targetSdkVersion 29
             externalNativeBuild {
                 cmake {
                     cppFlags " -DSPACES -DOPENXR -I" + file("src/openxr/cpp").absolutePath
@@ -279,7 +277,7 @@ android {
 
         aosp {
             dimension "platform"
-            targetSdkVersion build_versions.target_sdk_aosp
+            targetSdkVersion 29
             externalNativeBuild {
                 cmake {
                     cppFlags " -DAOSP -DOPENXR -I" + file("src/openxr/cpp").absolutePath
@@ -323,7 +321,7 @@ android {
             applicationId "com.igalia.wolvic"
             applicationIdSuffix ".visionglass"
             resValue "string", "app_name", "Wolvic Vision"
-            targetSdkVersion build_versions.target_sdk_visionglass
+            targetSdkVersion 33
             externalNativeBuild {
                 cmake {
                     cppFlags " -DVISIONGLASS"
@@ -401,6 +399,10 @@ android {
             buildConfigField "Boolean", "WEBVIEW_IN_PHONE_UI", "true"
             buildConfigField "Boolean", "CN_FIRST_RUN_IN_PHONE_UI", "true"
         }
+
+        magicleap {
+            dimension "store"
+        }
     }
 
     variantFilter { variant ->
@@ -425,6 +427,10 @@ android {
 
         // MetaStore only apply to oculusvr builds.
         if (store == 'metaStore' && !platform.startsWith('oculusvr'))
+            variant.setIgnore(true);
+
+        // MagicLeap only for AOSP x64 builds.
+        if (store == 'magicleap' && (platform != 'aosp' || abi != 'x64'))
             variant.setIgnore(true);
         
     }
@@ -459,72 +465,6 @@ android {
             java.srcDirs = [
                     'src/oculusvr/java'
             ]
-        }
-
-        wavevr {
-            java.srcDirs = [
-                    'src/wavevr/java'
-            ]
-            res.srcDirs = [
-                    'src/wavevr/res'
-            ]
-            jniLibs.srcDirs = ["${project.rootDir}/third_party/wavesdk/build/wvr_client-${versions.wavevr}/jni"]
-            packagingOptions {
-                jniLibs.pickFirsts.add("lib/**/libwvr_api.so")
-                jniLibs.pickFirsts.add("lib/**/liboverlay_api.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_internal_using_assimp.so")
-                jniLibs.pickFirsts.add("lib/**/libdummy.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore_component.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_monitor.so")
-                jniLibs.pickFirsts.add("lib/**/libdummy.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_runtime.so")
-                jniLibs.pickFirsts.add("lib/**/libvr_jni.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore_component.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_runtime.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_ctf_internal_common.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_internal_using_assimp.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_ctf_internal_common.so")
-                jniLibs.pickFirsts.add("lib/**/libvr_jni.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_monitor.so")
-                jniLibs.pickFirsts.add("lib/**/libsvrapi.so")
-            }
-        }
-
-        wavevrStore {
-            java.srcDirs = [
-                    'src/wavevr/java'
-            ]
-            res.srcDirs = [
-                    'src/wavevr/res'
-            ]
-            assets.srcDirs = [
-                    'src/wavevr/assets'
-            ]
-            jniLibs.srcDirs = ["${project.rootDir}/third_party/wavesdk/build/wvr_client-${versions.wavevr}/jni"]
-            manifest.srcFile "src/wavevr/AndroidManifest.xml"
-            packagingOptions {
-                jniLibs.pickFirsts.add("lib/**/libwvr_api.so")
-                jniLibs.pickFirsts.add("lib/**/liboverlay_api.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_internal_using_assimp.so")
-                jniLibs.pickFirsts.add("lib/**/libdummy.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore_component.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_monitor.so")
-                jniLibs.pickFirsts.add("lib/**/libdummy.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_runtime.so")
-                jniLibs.pickFirsts.add("lib/**/libvr_jni.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore_component.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_runtime.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_ctf_internal_common.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_internal_using_assimp.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_ctf_internal_common.so")
-                jniLibs.pickFirsts.add("lib/**/libvr_jni.so")
-                jniLibs.pickFirsts.add("lib/**/libvrcore.so")
-                jniLibs.pickFirsts.add("lib/**/libwvr_monitor.so")
-                jniLibs.pickFirsts.add("lib/**/libsvrapi.so")
-            }
         }
 
         hvr {
@@ -640,99 +580,99 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
 
     // Common
-    implementation deps.lifecycle.runtime
-    implementation deps.lifecycle.viewmodel
-    implementation deps.lifecycle.java8
-    implementation deps.lifecycle.process
-    implementation deps.support.annotations
-    implementation deps.support.app_compat
-    implementation deps.support.recyclerview
-    implementation deps.support.cardview
-    implementation deps.support.design
-    implementation deps.support.vector_drawable
-    implementation deps.support.viewpager2
-    implementation deps.constraint_layout
-    implementation deps.gson
-    implementation deps.room.runtime
-    annotationProcessor deps.room.compiler
+    implementation libs.lifecycle.runtime
+    implementation libs.lifecycle.viewmodel
+    implementation libs.lifecycle.java8
+    implementation libs.lifecycle.process
+    implementation libs.support.annotations
+    implementation libs.support.appcompat
+    implementation libs.support.recyclerview
+    implementation libs.support.cardview
+    implementation libs.support.design
+    implementation libs.support.vectordrawable
+    implementation libs.support.viewpager2
+    implementation libs.constraintlayout
+    implementation libs.gson
+    implementation libs.room.runtime
+    annotationProcessor libs.room.compiler
 
     // Android Components
-    implementation deps.android_components.browser_errorpages
-    implementation deps.android_components.browser_state
-    implementation deps.android_components.browser_storage
-    implementation deps.android_components.browser_domains
-    implementation deps.android_components.browser_icons
-    implementation deps.android_components.feature_findinpage
-    implementation deps.android_components.feature_search
-    implementation deps.android_components.feature_toolbar
-    implementation deps.android_components.service_accounts
-    implementation deps.android_components.service_sync_logins
-    implementation deps.android_components.mozilla_service_location
-    implementation deps.android_components.ui_autocomplete
-    implementation deps.android_components.concept_engine
-    implementation deps.android_components.concept_fetch
-    implementation deps.android_components.lib_fetch
-    implementation deps.android_components.lib_dataprotect
-    implementation deps.android_components.support_rustlog
-    implementation deps.android_components.support_rusthttp
-    implementation deps.android_components.support_webextensions
-    implementation deps.android_components.support_ktx
-    implementation deps.android_components.feature_accounts
-    implementation deps.android_components.feature_webcompat
-    implementation deps.android_components.feature_webcompat_reporter
-    implementation deps.android_components.feature_addons
-    implementation deps.android_components.glean
-    implementation deps.android_components.preference
+    implementation libs.androidcomponents.browser.errorpages
+    implementation libs.androidcomponents.browser.state
+    implementation libs.androidcomponents.browser.storage
+    implementation libs.androidcomponents.browser.domains
+    implementation libs.androidcomponents.browser.icons
+    implementation libs.androidcomponents.feature.findinpage
+    implementation libs.androidcomponents.feature.search
+    implementation libs.androidcomponents.feature.toolbar
+    implementation libs.androidcomponents.feature.top.sites
+    implementation libs.androidcomponents.service.accounts
+    implementation libs.androidcomponents.service.sync.logins
+    implementation libs.androidcomponents.mozilla.service.location
+    implementation libs.androidcomponents.ui.autocomplete
+    implementation libs.androidcomponents.concept.engine
+    implementation libs.androidcomponents.concept.fetch
+    implementation libs.androidcomponents.lib.fetch
+    implementation libs.androidcomponents.lib.dataprotect
+    implementation libs.androidcomponents.support.images
+    implementation libs.androidcomponents.support.rustlog
+    implementation libs.androidcomponents.support.rusthttp
+    implementation libs.androidcomponents.support.webextensions
+    implementation libs.androidcomponents.support.ktx
+    implementation libs.androidcomponents.feature.accounts
+    implementation libs.androidcomponents.feature.webcompat
+    implementation libs.androidcomponents.feature.webcompat.reporter
+    implementation libs.androidcomponents.feature.addons
+    implementation libs.support.preference
 
     // Kotlin dependency
-    implementation deps.kotlin.stdlib
-    implementation deps.kotlin.coroutines
-    implementation deps.kotlin.coroutines_jdk8
+    implementation libs.kotlin.stdlib
+    implementation libs.kotlin.coroutines
+    implementation libs.kotlin.coroutines.jdk8
 
     // DiskLRUCache used to cache snapshots
-    implementation deps.disklrucache.disklrucache
+    implementation libs.disklrucache
 
     // Color picker library
-    implementation deps.colorpicker
+    implementation libs.colorpicker
 
     // Required for targeting S+
-    implementation deps.work.runtime
-    implementation deps.work.runtime_ktx
+    implementation libs.work.runtime
+    implementation libs.work.runtime.ktx
 
     // OpenXR standard loader
-    implementation 'org.khronos.openxr:openxr_loader_for_android:1.0.34'
+    implementation libs.openxrloader
 
     // Testing
-    androidTestImplementation deps.atsl.runner
-    androidTestImplementation deps.atsl.junit
-    androidTestImplementation deps.espresso.core
-    testImplementation deps.junit
-    testImplementation deps.atsl.core
-    testImplementation deps.robolectric
-    testImplementation deps.android_components.support_test
-    testImplementation deps.android_components.support_test_appservices
-    jnaForTest deps.jna
+    androidTestImplementation libs.atsl.runner
+    androidTestImplementation libs.atsl.junit
+    androidTestImplementation libs.espresso.core
+    testImplementation libs.junit
+    testImplementation libs.atsl.core
+    testImplementation libs.robolectric
+    testImplementation libs.androidcomponents.support.test
+    testImplementation libs.androidcomponents.support.test.appservices
+    jnaForTest libs.jna
     testImplementation files(configurations.jnaForTest.copyRecursive().files)
-    testImplementation deps.telemetry.glean_unittests
-    testImplementation deps.work.testing
+    testImplementation libs.work.testing
 
     // MeetKai
     implementation fileTree(dir: "${project.rootDir}/libs/meetkai/", include: ['*.aar'])
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'net.lingala.zip4j:zip4j:2.11.5'
-    implementation 'org.apache.commons:commons-math3:3.6.1'
+    implementation libs.okhttp
+    implementation libs.zip4j
+    implementation libs.apache.commonsmath3
 
     // AOSP
-    aospImplementation 'androidx.games:games-activity:3.0.5'
+    aospImplementation libs.games.activity
 
     // HVR
     hvrImplementation fileTree(dir: "${project.rootDir}/third_party/hvr", include: ['*.jar'])
-    hvrImplementation 'com.huawei.agconnect:agconnect-core-harmony:1.1.0.300'
-    hvrImplementation 'com.huawei.agconnect:agconnect-core:1.9.1.301'
-    hvrImplementation 'com.huawei.hms:hianalytics:6.3.2.300'
-    hvrImplementation 'com.huawei.hms:ml-computer-voice-asr:3.1.0.300'
-    hvrImplementation 'com.huawei.hms:location:6.2.0.300'
-    hvrImplementation 'com.huawei.hms:push:6.5.0.300'
+    hvrImplementation libs.huawei.agconnect.core
+    hvrImplementation libs.huawei.agconnect.core.harmony
+    hvrImplementation libs.huawei.hms.hianaalytics
+    hvrImplementation libs.huawei.hms.location
+    hvrImplementation libs.huawei.hms.mlcomputervoiceasr
+    hvrImplementation libs.huawei.hms.push
 
     // Snapdragon Spaces
     //spacesImplementation fileTree(dir: "${project.rootDir}/third_party/spaces", include: ['*.aar'])
@@ -740,36 +680,14 @@ dependencies {
     // Vision Glass
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/aliceimu/", include: ['*.aar'])
     visionglassImplementation fileTree(dir: "${project.rootDir}/third_party/hvr", include: ['*.jar'])
-    visionglassImplementation 'com.huawei.agconnect:agconnect-core-harmony:1.1.0.300'
-    visionglassImplementation 'com.huawei.agconnect:agconnect-core:1.9.1.301'
-    visionglassImplementation 'com.huawei.hms:ml-computer-voice-asr:3.1.0.300'
-
-    // HTC Vive
-    if (!gradle.startParameter.taskNames.isEmpty() &&
-            gradle.startParameter.taskNames.get(0).toLowerCase().contains("wavevr")) {
-        configurations.maybeCreate("default")
-        artifacts.add("default", file('wvr_client.aar'))
-
-        def aarFilename = "wvr_client"
-
-        // unzip aar
-        def unzipDir = file("${rootDir}/third_party/wavesdk/build/${aarFilename}-${versions.wavevr}")
-        def aarFile = file("${rootDir}/third_party/wavesdk/${aarFilename}.aar")
-        if (aarFile != null) {
-            copy {
-                println 'unzip ' + aarFile
-                from zipTree(aarFile)
-                into unzipDir
-            }
-            wavevrImplementation fileTree(dir: "${rootDir}/third_party/wavesdk/", include: ['*.aar'])
-            wavevrStoreImplementation fileTree(dir: "${rootDir}/third_party/wavesdk/", include: ['*.aar'])
-        }
-    }
+    visionglassImplementation libs.huawei.agconnect.core
+    visionglassImplementation libs.huawei.agconnect.core.harmony
+    visionglassImplementation libs.huawei.hms.mlcomputervoiceasr
 
     // gecko
     def branch = "nightly" // "release", "nightly" or "beta"
-    geckoImplementation deps.gecko_view."${branch}_x86_64"
-    geckoImplementation deps.gecko_view."${branch}_arm64"
+    geckoImplementation libs.geckoview."${branch}".x64
+    geckoImplementation libs.geckoview."${branch}".arm64
     configurations.all {
          resolutionStrategy.capabilitiesResolution.withCapability('org.mozilla.geckoview:geckoview') {
             def abi = getName().toLowerCase().contains('x64') ? 'x86_64' : 'arm64'
@@ -781,7 +699,7 @@ dependencies {
     // chromium
     if (isChromiumAvailable()) {
         chromiumImplementation fileTree(dir: gradle."localProperties.chromium_aar", include: ['*.aar'])
-        chromiumImplementation 'androidx.fragment:fragment:1.8.5'
+        chromiumImplementation 'androidx.fragment:fragment:1.8.6'
     }
 
     // webkit
@@ -791,6 +709,15 @@ dependencies {
 
     // openwnn (bundled because it is not published outside of JCenter, which is deprecated)
     implementation fileTree(dir: "${project.rootDir}/libs/openwnn/", include: ['*.aar'])
+
+    // OpenTelemetry
+    implementation libs.opentelemetry.android.core
+    implementation libs.opentelemetry.android.instrumentation.activity
+    implementation libs.opentelemetry.android.instrumentation.anr
+    implementation libs.opentelemetry.android.instrumentation.crash
+    implementation libs.opentelemetry.android.instrumentation.sessions
+    implementation libs.opentelemetry.exporter.logging
+    coreLibraryDesugaring libs.desugar.jdk.libs
 }
 
 if (findProject(':servo')) {
@@ -841,6 +768,9 @@ android.applicationVariants.configureEach { variant ->
             variant.buildConfigField "String[]", "SPEECH_SERVICES", "{ com.igalia.wolvic.speech.SpeechServices.HUAWEI_ASR }"
         } else if (platform.toLowerCase().startsWith('picoxr')) {
             variant.resValue 'string', 'HOMEPAGE_URL', '"https://wolvic.com/zh/start/pico.html"'
+            variant.buildConfigField "String[]", "SPEECH_SERVICES", "{ com.igalia.wolvic.speech.SpeechServices.MEETKAI }"
+        }  else if (platform.toLowerCase().startsWith('pfdmxr')) {
+            variant.resValue 'string', 'HOMEPAGE_URL', '"https://wolvic.com/zh/start/pfdm.html"'
             variant.buildConfigField "String[]", "SPEECH_SERVICES", "{ com.igalia.wolvic.speech.SpeechServices.MEETKAI }"
         }
     }

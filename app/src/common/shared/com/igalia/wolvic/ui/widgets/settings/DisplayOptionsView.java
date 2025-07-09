@@ -13,14 +13,15 @@ import android.view.View;
 import androidx.databinding.DataBindingUtil;
 
 import com.igalia.wolvic.R;
-import com.igalia.wolvic.audio.AudioEngine;
 import com.igalia.wolvic.browser.SettingsStore;
 import com.igalia.wolvic.databinding.OptionsDisplayBinding;
 import com.igalia.wolvic.ui.views.settings.RadioGroupSetting;
-import com.igalia.wolvic.ui.views.settings.SliderSetting;
 import com.igalia.wolvic.ui.views.settings.SwitchSetting;
 import com.igalia.wolvic.ui.widgets.WidgetManagerDelegate;
 import com.igalia.wolvic.ui.widgets.WidgetPlacement;
+import com.igalia.wolvic.utils.UrlUtils;
+
+import java.util.Objects;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,10 +64,6 @@ class DisplayOptionsView extends SettingsView {
         mBinding.centerWindowsSwitch.setOnCheckedChangeListener(mCenterWindowsListener);
         setCenterWindows(SettingsStore.getInstance(getContext()).isCenterWindows(), false);
 
-        float windowDistance = SettingsStore.getInstance(getContext()).getWindowDistance();
-        mBinding.windowDistanceSlider.setOnValueChangeListener(mWindowDistanceListener);
-        setWindowDistance(windowDistance, false);
-
         int uaMode = SettingsStore.getInstance(getContext()).getUaMode();
         mBinding.uaRadio.setOnCheckedChangeListener(mUaModeListener);
         setUaMode(mBinding.uaRadio.getIdForValue(uaMode), false);
@@ -86,6 +83,10 @@ class DisplayOptionsView extends SettingsView {
         SettingsStore.WindowSizePreset windowSizePreset = SettingsStore.WindowSizePreset.fromValues(windowWidth, windowHeight);
         setWindowsSizePreset(windowSizePreset.ordinal(), false);
 
+        int homepageId = getHomepageId(SettingsStore.getInstance(getContext()).getHomepage());
+        mBinding.homepage.setOnCheckedChangeListener(mHomepageChangeListener);
+        setHomepage(homepageId, false);
+
         mBinding.autoplaySwitch.setOnCheckedChangeListener(mAutoplayListener);
         setAutoplay(SettingsStore.getInstance(getContext()).isAutoplayEnabled(), false);
 
@@ -98,14 +99,14 @@ class DisplayOptionsView extends SettingsView {
             mBinding.startWithPassthroughSwitch.setVisibility(View.GONE);
         }
 
-        mBinding.soundEffectSwitch.setOnCheckedChangeListener(mSoundEffectListener);
-        setSoundEffect(SettingsStore.getInstance(getContext()).isAudioEnabled(), false);
-
         mBinding.latinAutoCompleteSwitch.setOnCheckedChangeListener(mLatinAutoCompleteListener);
         setLatinAutoComplete(SettingsStore.getInstance(getContext()).isLatinAutoCompleteEnabled(), false);
 
         mBinding.headLockSwitch.setOnCheckedChangeListener(mHeadLockListener);
         setHeadLock(SettingsStore.getInstance(getContext()).isHeadLockEnabled(), false);
+
+        mBinding.openTabsInBackgroundSwitch.setOnCheckedChangeListener(mOpenTabsInBackgroundListener);
+        setOpenTabsInBackground(SettingsStore.getInstance(getContext()).isOpenTabsInBackgroundEnabled(), false);
 
         @SettingsStore.TabsLocation int tabsLocation = SettingsStore.getInstance(getContext()).getTabsLocation();
         mBinding.tabsLocationRadio.setOnCheckedChangeListener(mTabsLocationChangeListener);
@@ -116,19 +117,19 @@ class DisplayOptionsView extends SettingsView {
         mBinding.homepageEdit.setHint1(getContext().getString(R.string.homepage_hint, getContext().getString(R.string.app_name)));
         mBinding.homepageEdit.setDefaultFirstValue(mDefaultHomepageUrl);
         mBinding.homepageEdit.setFirstText(SettingsStore.getInstance(getContext()).getHomepage());
-        mBinding.homepageEdit.setOnClickListener(mHomepageListener);
+        mBinding.homepageEdit.setOnSaveClickedListener(mHomepageListener);
         setHomepage(SettingsStore.getInstance(getContext()).getHomepage());
 
         mBinding.densityEdit.setHint1(String.valueOf(SettingsStore.DISPLAY_DENSITY_DEFAULT));
         mBinding.densityEdit.setDefaultFirstValue(String.valueOf(SettingsStore.DISPLAY_DENSITY_DEFAULT));
         mBinding.densityEdit.setFirstText(Float.toString(SettingsStore.getInstance(getContext()).getDisplayDensity()));
-        mBinding.densityEdit.setOnClickListener(mDensityListener);
+        mBinding.densityEdit.setOnSaveClickedListener(mDensityListener);
         setDisplayDensity(SettingsStore.getInstance(getContext()).getDisplayDensity());
 
         mBinding.dpiEdit.setHint1(String.valueOf(SettingsStore.DISPLAY_DPI_DEFAULT));
         mBinding.dpiEdit.setDefaultFirstValue(String.valueOf(SettingsStore.DISPLAY_DPI_DEFAULT));
         mBinding.dpiEdit.setFirstText(Integer.toString(SettingsStore.getInstance(getContext()).getDisplayDpi()));
-        mBinding.dpiEdit.setOnClickListener(mDpiListener);
+        mBinding.dpiEdit.setOnSaveClickedListener(mDpiListener);
         setDisplayDpi(SettingsStore.getInstance(getContext()).getDisplayDpi());
     }
 
@@ -168,10 +169,6 @@ class DisplayOptionsView extends SettingsView {
         return editing;
     }
 
-    private SliderSetting.OnValueChangeListener mWindowDistanceListener = (slider, value, doApply) -> {
-        setWindowDistance(value, true);
-    };
-
     private RadioGroupSetting.OnCheckedChangeListener mUaModeListener = (radioGroup, checkedId, doApply) -> {
         setUaMode(checkedId, true);
     };
@@ -184,6 +181,10 @@ class DisplayOptionsView extends SettingsView {
         setWindowsSizePreset(checkedId, true);
     };
 
+    private RadioGroupSetting.OnCheckedChangeListener mHomepageChangeListener = (radioGroup, checkedId, doApply) -> {
+        setHomepage(checkedId, true);
+    };
+
     private SwitchSetting.OnCheckedChangeListener mAutoplayListener = (compoundButton, enabled, apply) -> {
         setAutoplay(enabled, true);
     };
@@ -192,16 +193,16 @@ class DisplayOptionsView extends SettingsView {
         setStartWithPassthrough(value);
     };
 
-    private SwitchSetting.OnCheckedChangeListener mSoundEffectListener = (compoundButton, enabled, apply) -> {
-        setSoundEffect(enabled, true);
-    };
-
     private SwitchSetting.OnCheckedChangeListener mLatinAutoCompleteListener = (compoundButton, enabled, apply) -> {
         setLatinAutoComplete(enabled, true);
     };
 
     private SwitchSetting.OnCheckedChangeListener mHeadLockListener = (compoundButton, value, doApply) -> {
         setHeadLock(value, true);
+    };
+
+    private SwitchSetting.OnCheckedChangeListener mOpenTabsInBackgroundListener = (compoundButton, value, doApply) -> {
+        setOpenTabsInBackground(value, true);
     };
 
     private RadioGroupSetting.OnCheckedChangeListener mTabsLocationChangeListener = (radioGroup, checkedId, doApply) -> {
@@ -274,6 +275,11 @@ class DisplayOptionsView extends SettingsView {
         if (mBinding.windowsSize.getCheckedRadioButtonId() != SettingsStore.WINDOW_SIZE_PRESET_DEFAULT.ordinal()) {
             setWindowsSizePreset(SettingsStore.WINDOW_SIZE_PRESET_DEFAULT.ordinal(), true);
         }
+        
+        int defaultHomepageId = getHomepageId(mDefaultHomepageUrl);
+        if (mBinding.homepage.getCheckedRadioButtonId() != defaultHomepageId) {
+            setHomepage(defaultHomepageId, true);
+        }
 
         float prevDensity = SettingsStore.getInstance(getContext()).getDisplayDensity();
         restart = restart | setDisplayDensity(SettingsStore.DISPLAY_DENSITY_DEFAULT);
@@ -285,10 +291,8 @@ class DisplayOptionsView extends SettingsView {
         setAutoplay(SettingsStore.AUTOPLAY_ENABLED, true);
         setCurvedDisplay(false, true);
         setHeadLock(SettingsStore.HEAD_LOCK_DEFAULT, true);
-        setSoundEffect(SettingsStore.AUDIO_ENABLED, true);
         setLatinAutoComplete(SettingsStore.LATIN_AUTO_COMPLETE_ENABLED, true);
         setCenterWindows(SettingsStore.CENTER_WINDOWS_DEFAULT, true);
-        setWindowDistance(SettingsStore.WINDOW_DISTANCE_DEFAULT, true);
 
         if (mBinding.startWithPassthroughSwitch.isChecked() != SettingsStore.shouldStartWithPassthrougEnabled()) {
             setStartWithPassthrough(SettingsStore.shouldStartWithPassthrougEnabled());
@@ -365,14 +369,14 @@ class DisplayOptionsView extends SettingsView {
         }
     }
 
-    private void setSoundEffect(boolean value, boolean doApply) {
-        mBinding.soundEffectSwitch.setOnCheckedChangeListener(null);
-        mBinding.soundEffectSwitch.setValue(value, false);
-        mBinding.soundEffectSwitch.setOnCheckedChangeListener(mSoundEffectListener);
+    private void setOpenTabsInBackground(boolean value, boolean doApply) {
+        mBinding.openTabsInBackgroundSwitch.setOnCheckedChangeListener(null);
+        mBinding.openTabsInBackgroundSwitch.setValue(value, false);
+        mBinding.openTabsInBackgroundSwitch.setOnCheckedChangeListener(mOpenTabsInBackgroundListener);
 
+        SettingsStore settingsStore = SettingsStore.getInstance(getContext());
         if (doApply) {
-            SettingsStore.getInstance(getContext()).setAudioEnabled(value);
-            AudioEngine.fromContext(getContext()).setEnabled(value);
+            settingsStore.setOpenTabsInBackgroundEnabled(value);
         }
     }
 
@@ -387,19 +391,40 @@ class DisplayOptionsView extends SettingsView {
         }
     }
 
-    private void setHomepage(String newHomepage) {
-        mBinding.homepageEdit.setOnClickListener(null);
-        mBinding.homepageEdit.setFirstText(newHomepage);
-        SettingsStore.getInstance(getContext()).setHomepage(newHomepage);
-        mBinding.homepageEdit.setOnClickListener(mHomepageListener);
+    private void setHomepage(int checkedId, boolean doApply) {
+        mBinding.homepage.setOnCheckedChangeListener(null);
+        mBinding.homepage.setChecked(checkedId, doApply);
+        mBinding.homepage.setOnCheckedChangeListener(mHomepageChangeListener);
+
+        if (checkedId == 0) {
+            mBinding.homepageEdit.setVisibility(View.GONE);
+            SettingsStore.getInstance(getContext()).setHomepage(UrlUtils.ABOUT_NEWTAB);
+        } else if (checkedId == 1) {
+            mBinding.homepageEdit.setVisibility(View.GONE);
+            SettingsStore.getInstance(getContext()).setHomepage(mDefaultHomepageUrl);
+        } else if (checkedId == 2) {
+            mBinding.homepageEdit.setVisibility(View.VISIBLE);
+        }
     }
 
-    private void setWindowDistance(float value, boolean doApply) {
-        mBinding.windowDistanceSlider.setOnValueChangeListener(null);
-        mBinding.windowDistanceSlider.setValue(value, doApply);
-        mBinding.windowDistanceSlider.setOnValueChangeListener(mWindowDistanceListener);
+    private int getHomepageId(String homepage) {
+        if (Objects.equals(homepage, UrlUtils.ABOUT_NEWTAB)) {
+            return 0;
+        } else if (Objects.equals(homepage, getContext().getString(R.string.HOMEPAGE_URL))) {
+            return 1;
+        } else {
+            return 2;
+        }
+    }
 
-        SettingsStore.getInstance(getContext()).setWindowDistance(mBinding.windowDistanceSlider.getValue());
+    private void setHomepage(String newHomepage) {
+        if (mBinding.homepageEdit.getVisibility() != VISIBLE) {
+            return;
+        }
+        mBinding.homepageEdit.setOnSaveClickedListener(null);
+        mBinding.homepageEdit.setFirstText(newHomepage);
+        SettingsStore.getInstance(getContext()).setHomepage(newHomepage);
+        mBinding.homepageEdit.setOnSaveClickedListener(mHomepageListener);
     }
 
     private void setUaMode(int checkId, boolean doApply) {
@@ -432,7 +457,7 @@ class DisplayOptionsView extends SettingsView {
     }
 
     private boolean setDisplayDensity(float newDensity) {
-        mBinding.densityEdit.setOnClickListener(null);
+        mBinding.densityEdit.setOnSaveClickedListener(null);
         boolean restart = false;
         float prevDensity = SettingsStore.getInstance(getContext()).getDisplayDensity();
         if (newDensity <= 0) {
@@ -443,13 +468,13 @@ class DisplayOptionsView extends SettingsView {
             restart = true;
         }
         mBinding.densityEdit.setFirstText(Float.toString(newDensity));
-        mBinding.densityEdit.setOnClickListener(mDensityListener);
+        mBinding.densityEdit.setOnSaveClickedListener(mDensityListener);
 
         return restart;
     }
 
     private boolean setDisplayDpi(int newDpi) {
-        mBinding.dpiEdit.setOnClickListener(null);
+        mBinding.dpiEdit.setOnSaveClickedListener(null);
         boolean restart = false;
         int prevDpi = SettingsStore.getInstance(getContext()).getDisplayDpi();
         if (newDpi < SettingsStore.DISPLAY_DPI_MIN || newDpi > SettingsStore.DISPLAY_DPI_MAX) {
@@ -460,7 +485,7 @@ class DisplayOptionsView extends SettingsView {
             restart = true;
         }
         mBinding.dpiEdit.setFirstText(Integer.toString(newDpi));
-        mBinding.dpiEdit.setOnClickListener(mDpiListener);
+        mBinding.dpiEdit.setOnSaveClickedListener(mDpiListener);
 
         return restart;
     }

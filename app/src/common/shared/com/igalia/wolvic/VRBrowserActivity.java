@@ -42,12 +42,15 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentController;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.LifecycleOwnerKt;
 import androidx.lifecycle.LifecycleRegistry;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelStore;
 import androidx.lifecycle.ViewModelStoreOwner;
 import androidx.preference.PreferenceManager;
 
 import com.igalia.wolvic.audio.AndroidMediaPlayer;
+import com.igalia.wolvic.audio.AndroidMediaPlayerSoundPool;
 import com.igalia.wolvic.audio.AudioEngine;
 import com.igalia.wolvic.browser.Accounts;
 import com.igalia.wolvic.browser.Media;
@@ -65,6 +68,7 @@ import com.igalia.wolvic.input.MotionEventGenerator;
 import com.igalia.wolvic.search.SearchEngineWrapper;
 import com.igalia.wolvic.speech.SpeechRecognizer;
 import com.igalia.wolvic.speech.SpeechServices;
+import com.igalia.wolvic.telemetry.OpenTelemetry;
 import com.igalia.wolvic.telemetry.TelemetryService;
 import com.igalia.wolvic.ui.OffscreenDisplay;
 import com.igalia.wolvic.ui.adapters.Language;
@@ -73,6 +77,7 @@ import com.igalia.wolvic.ui.widgets.AppServicesProvider;
 import com.igalia.wolvic.ui.widgets.HorizontalTabsBar;
 import com.igalia.wolvic.ui.widgets.KeyboardWidget;
 import com.igalia.wolvic.ui.widgets.NavigationBarWidget;
+import com.igalia.wolvic.ui.widgets.OverlayContentWidget;
 import com.igalia.wolvic.ui.widgets.RootWidget;
 import com.igalia.wolvic.ui.widgets.TrayWidget;
 import com.igalia.wolvic.ui.widgets.UISurfaceTextureRenderer;
@@ -113,6 +118,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import kotlinx.coroutines.CoroutineScope;
+
 public class VRBrowserActivity extends PlatformActivity implements WidgetManagerDelegate,
         ComponentCallbacks2, LifecycleOwner, ViewModelStoreOwner, SharedPreferences.OnSharedPreferenceChangeListener, PlatformActivityPlugin.PlatformActivityPluginListener {
 
@@ -134,6 +141,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     // Element where a click would be simulated to launch the WebXR experience.
     public static final String EXTRA_LAUNCH_IMMERSIVE_PARENT_XPATH = "launch_immersive_parent_xpath";
     public static final String EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH = "launch_immersive_element_xpath";
+
+    private boolean shouldRestoreHeadLockOnVRVideoExit;
 
     private BroadcastReceiver mCrashReceiver = new BroadcastReceiver() {
         @Override
@@ -165,6 +174,10 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             mLifeCycle = new LifecycleRegistry(this);
         }
         return mLifeCycle;
+    }
+
+    public CoroutineScope getCoroutineScope() {
+        return LifecycleOwnerKt.getLifecycleScope(this);
     }
 
     private final ViewModelStore mViewModelStore;
@@ -203,9 +216,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     static final long RESET_CRASH_COUNT_DELAY = 5000;
     static final int UPDATE_NATIVE_WIDGETS_DELAY = 50; // milliseconds
 
-    // Passthrough was enabled on Pico version 5.7.1, via XR_FB_passthrough extension
-    static final String kPicoVersionPassthroughUpdate = "5.7.1";
-
     static final String LOGTAG = SystemUtils.createLogtag(VRBrowserActivity.class);
     ConcurrentHashMap<Integer, Widget> mWidgets;
     private int mWidgetHandleIndex = 1;
@@ -232,7 +242,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     LinkedList<WorldClickListener> mWorldClickListeners;
     LinkedList<WebXRListener> mWebXRListeners;
     LinkedList<Runnable> mBackHandlers;
-    private boolean mIsPresentingImmersive = false;
+    private final MutableLiveData<Boolean> mIsPresentingImmersive = new MutableLiveData<>(false);
     private Thread mUiThread;
     private LinkedList<Pair<Object, Float>> mBrightnessQueue;
     private Pair<Object, Float> mCurrentBrightness;
@@ -287,6 +297,11 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
         SettingsStore.getInstance(getBaseContext()).setPid(Process.myPid());
         ((VRBrowserApplication)getApplication()).onActivityCreate(this);
+
+        if (!DeviceType.isHVRBuild() && SettingsStore.getInstance(getBaseContext()).isTelemetryEnabled()) {
+            TelemetryService.setService(new OpenTelemetry(getApplication()));
+        }
+
         // Fix for infinite restart on startup crashes.
         long count = SettingsStore.getInstance(getBaseContext()).getCrashRestartCount();
         boolean cancelRestart = count > CrashReporterService.MAX_RESTART_COUNT;
@@ -331,6 +346,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         mCurrentBrightness = Pair.create(null, 1.0f);
         mWidgets = new ConcurrentHashMap<>();
 
+        mIsPresentingImmersive.observe(this, this::onPresentingImmersiveChange);
+
         super.onCreate(savedInstanceState);
 
         mWidgetContainer = new FrameLayout(this);
@@ -338,7 +355,10 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
         mPermissionDelegate = new PermissionDelegate(this, this);
 
-        mAudioEngine = new AudioEngine(this, new AndroidMediaPlayer(getBaseContext()));
+        mAudioEngine = new AudioEngine(this,
+                BuildConfig.USE_SOUNDPOOL
+                        ? new AndroidMediaPlayerSoundPool(getBaseContext())
+                        : new AndroidMediaPlayer(getBaseContext()));
         mAudioEngine.setEnabled(SettingsStore.getInstance(this).isAudioEnabled());
         mAudioEngine.preloadAsync(() -> {
             Log.i(LOGTAG, "AudioEngine sounds preloaded!");
@@ -379,7 +399,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         if (false)
             checkForCrash();
 
-        setHeadLockEnabled(mSettings.isHeadLockEnabled());
+        setLockMode(mSettings.isHeadLockEnabled() ? WidgetManagerDelegate.HEAD_LOCK : WidgetManagerDelegate.NO_LOCK);
         if (mSettings.getPointerMode() == WidgetManagerDelegate.TRACKED_EYE)
             checkEyeTrackingPermissions(aPermissionGranted -> setPointerMode(aPermissionGranted ? WidgetManagerDelegate.TRACKED_EYE : WidgetManagerDelegate.TRACKED_POINTER));
         else
@@ -453,6 +473,13 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                     mPlatformPlugin.onVideoAvailabilityChange();
                 }
             }
+
+            @Override
+            public void onIsWindowFullscreenChanged(boolean isFullscreen) {
+                if (mPlatformPlugin != null) {
+                    mPlatformPlugin.onIsFullscreenChange(isFullscreen);
+                }
+            }
         });
 
         // Create the tray
@@ -479,6 +506,12 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             mPlatformPlugin.registerListener(this);
 
         mWindows.restoreSessions();
+    }
+
+    private void onPresentingImmersiveChange(boolean presenting) {
+        if (mPlatformPlugin != null) {
+            mPlatformPlugin.onIsPresentingImmersiveChange(presenting);
+        }
     }
 
     private void attachToWindow(@NonNull WindowWidget aWindow, @Nullable WindowWidget aPrevWindow) {
@@ -617,7 +650,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     protected void onPause() {
-        if (mIsPresentingImmersive) {
+        if (mIsPresentingImmersive.getValue()) {
             // This needs to be sync to ensure that WebVR is correctly paused.
             // Also prevents a deadlock in onDestroy when the BrowserWidget is released.
             exitImmersiveSync();
@@ -759,7 +792,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             initializeSpeechRecognizer();
         } else if (Objects.equals(key, getString(R.string.settings_key_head_lock))) {
             boolean isHeadLockEnabled = mSettings.isHeadLockEnabled();
-            setHeadLockEnabled(isHeadLockEnabled);
+            setLockMode(isHeadLockEnabled ? WidgetManagerDelegate.HEAD_LOCK : WidgetManagerDelegate.NO_LOCK);
             if (!isHeadLockEnabled)
                 recenterUIYaw(WidgetManagerDelegate.YAW_TARGET_ALL);
         } else if (Objects.equals(key, getString(R.string.settings_key_tabs_location))) {
@@ -904,7 +937,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         }
 
         // If there is a target URI we open it
-        if (targetUri != null) {
+        if (targetUri != null && !targetUri.toString().isEmpty()) {
             Log.d(LOGTAG, "Loading URI from intent: " + targetUri);
 
             int location = Windows.OPEN_IN_FOREGROUND;
@@ -1024,7 +1057,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         if (mPlatformPlugin != null && mPlatformPlugin.onBackPressed()) {
             return;
         }
-        if (mIsPresentingImmersive) {
+        if (mIsPresentingImmersive.getValue()) {
             queueRunnable(this::exitImmersiveNative);
             return;
         }
@@ -1153,6 +1186,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                 if (!windowWidget.isNativeContentVisible()) {
                     scale = 1.0f;
                 }
+            } else if (widget instanceof OverlayContentWidget) {
+                scale = 1.0f;
             }
             final float x = aX / scale;
             final float y = aY / scale;
@@ -1225,11 +1260,6 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     @Keep
     void handleBack() {
         runOnUiThread(() -> {
-            // On WAVE VR, the back button no longer seems to work.
-            if (DeviceType.isWaveBuild()) {
-                onBackPressed();
-                return;
-            }
             dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK));
             dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK));
         });
@@ -1298,7 +1328,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         if (Thread.currentThread() == mUiThread) {
             return;
         }
-        mIsPresentingImmersive = true;
+        mIsPresentingImmersive.postValue(true);
         runOnUiThread(() -> {
             mWindows.enterImmersiveMode();
             for (WebXRListener listener: mWebXRListeners) {
@@ -1327,7 +1357,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         if (Thread.currentThread() == mUiThread) {
             return;
         }
-        mIsPresentingImmersive = false;
+        mIsPresentingImmersive.postValue(false);
         TelemetryService.stopImmersive();
 
         if (mLaunchImmersive) {
@@ -1491,7 +1521,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                 return;
             }
             // Don't block poorly performing immersive pages.
-            if (mIsPresentingImmersive) {
+            if (mIsPresentingImmersive.getValue()) {
                 return;
             }
             WindowWidget window = mWindows.getFocusedWindow();
@@ -1810,6 +1840,17 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
 
     @Override
+    public void startWindowMove() {
+        SettingsStore.getInstance(this).setHeadLockEnabled(false);
+        setLockMode(WidgetManagerDelegate.CONTROLLER_LOCK);
+    }
+
+    @Override
+    public void finishWindowMove() {
+        setLockMode(WidgetManagerDelegate.NO_LOCK);
+    }
+
+    @Override
     public void addUpdateListener(@NonNull UpdateListener aUpdateListener) {
         if (!mWidgetUpdateListeners.contains(aUpdateListener)) {
             mWidgetUpdateListeners.add(aUpdateListener);
@@ -1880,7 +1921,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     public boolean isWebXRPresenting() {
-        return mIsPresentingImmersive;
+        return mIsPresentingImmersive.getValue();
     }
 
     @Override
@@ -2011,12 +2052,20 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     public void showVRVideo(final int aWindowHandle, final @VideoProjectionMenuWidget.VideoProjectionFlags int aVideoProjection) {
+        if (mSettings.isHeadLockEnabled()) {
+            mSettings.setHeadLockEnabled(false);
+            shouldRestoreHeadLockOnVRVideoExit = true;
+        }
         queueRunnable(() -> showVRVideoNative(aWindowHandle, aVideoProjection));
     }
 
     @Override
     public void hideVRVideo() {
         queueRunnable(this::hideVRVideoNative);
+
+        if (shouldRestoreHeadLockOnVRVideoExit) {
+            mSettings.setHeadLockEnabled(true);
+        }
     }
 
     @Override
@@ -2031,8 +2080,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
     @Override
     public boolean isPassthroughSupported() {
-        return DeviceType.isOculusBuild() || DeviceType.isLynx() || DeviceType.isSnapdragonSpaces() ||
-               (DeviceType.isPicoXR() && Build.ID.compareTo(kPicoVersionPassthroughUpdate) >= 0);
+        return DeviceType.isOculusBuild() || DeviceType.isLynx() || DeviceType.isSnapdragonSpaces() || DeviceType.isPicoXR();
     }
     @Override
     public boolean areControllersAvailable() {
@@ -2045,8 +2093,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     }
 
     @Override
-    public void setHeadLockEnabled(boolean isHeadLockEnabled) {
-        queueRunnable(() -> setHeadLockEnabledNative(isHeadLockEnabled));
+    public void setLockMode(@LockMode int lockMode) {
+        queueRunnable(() -> setLockEnabledNative(lockMode));
     }
 
     @Override
@@ -2237,6 +2285,14 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     @Override
     public boolean isEyeTrackingSupported() { return mIsEyeTrackingSupported; }
 
+    @Keep
+    @SuppressWarnings("unused")
+    private void changeWindowDistance(float aDelta) {
+        float increment = 0.05f;
+        float clamped = Math.max(0.0f, Math.min(mSettings.getWindowDistance() + (aDelta > 0 ? increment : -increment), 1.0f));
+        mSettings.setWindowDistance(clamped);
+    }
+
     private native void addWidgetNative(int aHandle, WidgetPlacement aPlacement);
     private native void updateWidgetNative(int aHandle, WidgetPlacement aPlacement);
     private native void updateVisibleWidgetsNative();
@@ -2256,7 +2312,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     private native void showVRVideoNative(int aWindowHandler, int aVideoProjection);
     private native void hideVRVideoNative();
     private native void togglePassthroughNative();
-    private native void setHeadLockEnabledNative(boolean isEnabled);
+    private native void setLockEnabledNative(@LockMode int aLockMode);
     private native void recenterUIYawNative(@YawTarget int aTarget);
     private native void setControllersVisibleNative(boolean aVisible);
     private native void runCallbackNative(long aCallback);

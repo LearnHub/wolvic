@@ -10,6 +10,7 @@ import android.util.Log;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.preference.PreferenceManager;
 
 import com.google.gson.Gson;
@@ -98,6 +99,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
         int textureHeight;
         float worldWidth;
         int tabIndex = -1;
+
         // NOTE: Enum values may be null when deserialized by GSON.
         ContentType contentType = ContentType.WEB_CONTENT;
 
@@ -120,7 +122,8 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
             tabIndex = aTabIndex;
             if (aWindow.isNativeContentVisible()) {
                 contentType = aWindow.getSelectedPanel();
-
+            } else if (aWindow.getCurrentContentType() == ContentType.NEW_TAB) {
+                contentType = ContentType.NEW_TAB;
             } else {
                 contentType = ContentType.WEB_CONTENT;
             }
@@ -165,19 +168,37 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     private ConnectivityReceiver mConnectivityReceived;
 
     public enum ContentType {
-        WEB_CONTENT(""),
-        BOOKMARKS(UrlUtils.ABOUT_BOOKMARKS),
-        WEB_APPS(UrlUtils.ABOUT_WEBAPPS),
-        HISTORY(UrlUtils.ABOUT_HISTORY),
-        DOWNLOADS(UrlUtils.ABOUT_DOWNLOADS),
-        ADDONS(UrlUtils.ABOUT_ADDONS),
-        NOTIFICATIONS(UrlUtils.ABOUT_NOTIFICATIONS);
+        WEB_CONTENT("", android.R.string.untitled),
+        BOOKMARKS(UrlUtils.ABOUT_BOOKMARKS, R.string.url_bookmarks_title),
+        WEB_APPS(UrlUtils.ABOUT_WEBAPPS, R.string.web_apps_title),
+        HISTORY(UrlUtils.ABOUT_HISTORY, R.string.history_title),
+        DOWNLOADS(UrlUtils.ABOUT_DOWNLOADS, R.string.url_downloads_title),
+        ADDONS(UrlUtils.ABOUT_ADDONS, R.string.url_addons_title),
+        NOTIFICATIONS(UrlUtils.ABOUT_NOTIFICATIONS, R.string.notifications_title),
+        NEW_TAB(UrlUtils.ABOUT_NEWTAB, R.string.url_new_tab_title);
 
         @NonNull
         public final String URL;
-        ContentType(@NonNull String url) {
+        public final @StringRes int titleResId;
+
+        ContentType(@NonNull String url, int titleResId) {
             this.URL = url;
+            this.titleResId = titleResId;
         }
+
+        public boolean isLibraryContent() {
+            switch (this) {
+                case BOOKMARKS:
+                case WEB_APPS:
+                case HISTORY:
+                case DOWNLOADS:
+                case ADDONS:
+                case NOTIFICATIONS:
+                    return true;
+                default:
+                    return false;
+            }
+        };
     }
 
     public enum WindowPlacement{
@@ -200,6 +221,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
         void onWindowsMoved();
         void onWindowClosed();
         void onWindowVideoAvailabilityChanged(@NonNull WindowWidget aWindow);
+        void onIsWindowFullscreenChanged(boolean aFullscreen);
     }
 
     public Windows(Context aContext) {
@@ -238,7 +260,14 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
             WindowsState state = new WindowsState();
             state.privateMode = mPrivateMode;
             state.focusedWindowPlacement = mFocusedWindow.isFullScreen() ?  mFocusedWindow.getWindowPlacementBeforeFullscreen() : mFocusedWindow.getWindowPlacement();
-            ArrayList<Session> sessions = SessionStore.get().getSortedSessions(false);
+            List<Session> sessions;
+            if (SettingsStore.getInstance(mContext).getTabsLocation() == SettingsStore.TABS_LOCATION_TRAY) {
+                // Tabs in the tray are sorted by recently used, so we preserve their current order.
+                sessions = SessionStore.get().getSortedSessions(false);
+            } else {
+                // Tabs in the visible bars keep a fixed order.
+                sessions = SessionStore.get().getSessions(false);
+            }
             state.tabs = sessions.stream()
                     .map(Session::getSessionState)
                     .filter(sessionState -> HistoryStore.getBLOCK_LIST().stream().noneMatch(uri ->
@@ -389,6 +418,9 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
                 case ADDONS:
                     newWindow.getSession().loadUri(UrlUtils.ABOUT_ADDONS);
                     break;
+                case NEW_TAB:
+                    newWindow.getSession().loadUri(UrlUtils.ABOUT_NEWTAB);
+                    break;
                 case WEB_CONTENT:
                     break;
             }
@@ -404,7 +436,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
         WindowWidget leftWindow = getLeftWindow();
         WindowWidget rightWindow = getRightWindow();
 
-        aWindow.hidePanel();
+        aWindow.closeLibrary();
 
         if (leftWindow == aWindow) {
             removeWindow(leftWindow);
@@ -637,9 +669,9 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     }
 
     private void closeLibraryPanelInFocusedWindowIfNeeded() {
-        if (!mFocusedWindow.isNativeContentVisible())
+        if (!mFocusedWindow.getCurrentContentType().isLibraryContent())
             return;
-        mFocusedWindow.hidePanel();
+        mFocusedWindow.closeLibrary();
     }
 
     public void enterPrivateMode() {
@@ -1227,18 +1259,18 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     @Override
     public void onBookmarksClicked() {
         if (mFocusedWindow.getCurrentContentType() == ContentType.BOOKMARKS) {
-            mFocusedWindow.hidePanel();
+            mFocusedWindow.closeLibrary();
         } else {
-            mFocusedWindow.showPanel(ContentType.BOOKMARKS);
+            mFocusedWindow.showLibrary(ContentType.BOOKMARKS);
         }
     }
 
     @Override
     public void onDownloadsClicked() {
         if (mFocusedWindow.getCurrentContentType() == ContentType.DOWNLOADS) {
-            mFocusedWindow.hidePanel();
+            mFocusedWindow.closeLibrary();
         } else {
-            mFocusedWindow.showPanel(ContentType.DOWNLOADS);
+            mFocusedWindow.showLibrary(ContentType.DOWNLOADS);
         }
     }
 
@@ -1438,6 +1470,13 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
     }
 
     @Override
+    public void onIsWindowFullscreenChanged(boolean aFullScreen) {
+        if (mDelegate != null) {
+            mDelegate.onIsWindowFullscreenChanged(aFullScreen);
+        }
+    }
+
+    @Override
     public void onKioskMode(WindowWidget aWindow, boolean isKioskMode) {
         // TODO
     }
@@ -1615,6 +1654,14 @@ public void selectTab(@NonNull Session aTab) {
                 return null;
             });
         }
+    }
+
+    @Override
+    public void onTabSync() {
+        // If we're signed-in, poll for any new device events (e.g. received tabs)
+        // There's no push support right now, so this helps with the perception of speedy tab delivery.
+        mAccounts.refreshDevicesAsync();
+        mAccounts.pollForEventsAsync();
     }
 
     public void closeTab(@NonNull Session aTab) {

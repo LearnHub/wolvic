@@ -22,6 +22,8 @@ import android.hardware.display.DisplayManager;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
 import android.view.Display;
@@ -32,6 +34,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 
 import androidx.annotation.Keep;
@@ -39,8 +42,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.DataBindingUtil;
 import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.ProcessLifecycleOwner;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.slider.Slider;
 import com.huawei.hms.mlsdk.common.MLApplication;
 import com.huawei.usblib.DisplayMode;
 import com.huawei.usblib.DisplayModeCallback;
@@ -58,7 +64,9 @@ import com.igalia.wolvic.ui.widgets.WidgetManagerDelegate;
 import com.igalia.wolvic.utils.StringUtils;
 import com.igalia.wolvic.utils.SystemUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -78,7 +86,6 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     private int mDisplayModeRetryCount = 0;
     private int mUSBPermissionRequestCount = 0;
     private boolean mSwitchedTo3DMode = false;
-    private boolean mShouldRecalibrateAfterIMURestart = false;
     private AlignPhoneDialogFragment mAlignDialogFragment;
     private AlignNotificationUIDialog mAlignNotificationUIDialog;
 
@@ -122,6 +129,34 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         }
     };
     private final Runnable activityResumedRunnable = this::activityResumed;
+
+    // Unfortunately, the usual solutions for keeping the screen active (WakeLock, KEEP_SCREEN_ON)
+    // do not work when the Vision Glass is connected, so we need to simulate a touch periodically.
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private static final String KEEP_SCREEN_ON_COMMAND = "input touchscreen tap 1 1";
+    private static final int KEEP_SCREEN_ON_DELAY = 10_000;
+
+    private final Runnable keepScreenOnRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!ProcessLifecycleOwner.get().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
+                return;
+            }
+            try {
+                Runtime.getRuntime().exec(KEEP_SCREEN_ON_COMMAND);
+                mMainHandler.postDelayed(this, KEEP_SCREEN_ON_DELAY);
+            } catch (IOException e) {
+                Log.w(LOGTAG, "Error while simulating touch", e);
+            }
+        }
+    };
+
+    private void keepScreenOn(boolean enable) {
+        mMainHandler.removeCallbacks(keepScreenOnRunnable);
+        if (enable) {
+            mMainHandler.post(keepScreenOnRunnable);
+        }
+    }
 
     private interface VRBrowserActivityCallback {
         void run(VRBrowserActivity activity);
@@ -211,8 +246,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     }
 
     private void registerPhoneIMUListener() {
-        mShouldRecalibrateAfterIMURestart = true;
-        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR), SensorManager.SENSOR_DELAY_GAME);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR), SensorManager.SENSOR_DELAY_UI);
     }
 
     private void reorientController() {
@@ -223,10 +257,8 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
             mAlignNotificationUIDialog = null;
         }
 
-        mSensorManager.unregisterListener(this);
-        registerPhoneIMUListener();
-
         runVRBrowserActivityCallback(activity -> activity.recenterUIYaw(WidgetManagerDelegate.YAW_TARGET_ALL));
+        queueRunnable(this::calibrateController);
     }
 
     private void onConnectionStateChanged(PhoneUIViewModel.ConnectionState connectionState) {
@@ -250,7 +282,6 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
 
         ContextThemeWrapper themedContext = new ContextThemeWrapper(this, R.style.Theme_WolvicPhone);
         LayoutInflater themedInflater = getLayoutInflater().cloneInContext(themedContext);
-        mBinding = DataBindingUtil.setContentView(this, R.layout.visionglass_layout);
         mBinding = DataBindingUtil.inflate(themedInflater, R.layout.visionglass_layout, null, false);
         setContentView(mBinding.getRoot());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -362,17 +393,12 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     @Override
     public void onSensorChanged(SensorEvent event) {
         // retrieve the device orientation from sensorevent in the form of quaternion
-        if (event.sensor.getType() != Sensor.TYPE_GAME_ROTATION_VECTOR)
+        if (event.sensor.getType() != Sensor.TYPE_ROTATION_VECTOR)
             return;
 
         final float[] quaternion = fromSensorManagerToWorld(event.values);
 
         queueRunnable(() -> setControllerOrientation(quaternion[0], quaternion[1], quaternion[2], quaternion[3]));
-
-        if (mShouldRecalibrateAfterIMURestart) {
-            mShouldRecalibrateAfterIMURestart = false;
-            queueRunnable(this::calibrateController);
-        }
 
         mBinding.realignButton.updatePosition(-quaternion[1], -quaternion[0]);
 
@@ -423,6 +449,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         }
 
         mSensorManager.unregisterListener(this);
+        mMainHandler.removeCallbacks(keepScreenOnRunnable);
     }
 
     @Override
@@ -437,9 +464,10 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         if (VisionGlass.getInstance().isConnected() && VisionGlass.getInstance().hasUsbPermission() && mSwitchedTo3DMode && mActivePresentation == null) {
             updateDisplays();
         }
-
-        if (mActivePresentation != null && mActivePresentation.mGLView != null)
+        if (mActivePresentation != null && mActivePresentation.mGLView != null) {
             mActivePresentation.mGLView.onResume();
+            keepScreenOn(true);
+        }
 
         queueRunnable(activityResumedRunnable);
     }
@@ -496,6 +524,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
 
         if (displays.length > 0) {
             runOnUiThread(() -> showPresentation(displays[0]));
+            keepScreenOn(true);
             return;
         }
 
@@ -507,6 +536,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
 
         if (!VisionGlass.getInstance().isConnected()) {
             mViewModel.updateConnectionState(PhoneUIViewModel.ConnectionState.DISCONNECTED);
+            keepScreenOn(false);
             return;
         }
 
@@ -536,16 +566,20 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
     }
 
     public final PlatformActivityPlugin createPlatformPlugin(WidgetManagerDelegate delegate) {
-        return new PlatformActivityPluginVisionGlass(delegate);
+        return new PlatformActivityPluginVisionGlass(delegate, this);
     }
 
     private class PlatformActivityPluginVisionGlass extends PlatformActivityPlugin {
-        private WidgetManagerDelegate mDelegate;
+        private final WidgetManagerDelegate mDelegate;
+        private final TrayDelegate mTrayDelegate;
         private WMediaSession.Delegate mMediaSessionDelegate;
         private GestureDetector mGestureDetector;
+        private final Context mContext;
 
-        PlatformActivityPluginVisionGlass(WidgetManagerDelegate delegate) {
+        PlatformActivityPluginVisionGlass(WidgetManagerDelegate delegate, Context context) {
             mDelegate = delegate;
+            mTrayDelegate = delegate.getTray();
+            mContext = context;
             setupPhoneUI();
         }
 
@@ -583,6 +617,16 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
             });
         }
 
+        @Override
+        public void onIsPresentingImmersiveChange(boolean isPresentingImmersive) {
+            mViewModel.updateIsPresentingImmersive(isPresentingImmersive);
+        }
+
+        @Override
+        public void onIsFullscreenChange(boolean isFullScreen) {
+            mViewModel.updateIsFullscreen(isFullScreen);
+        }
+
         private Media getActiveMedia() {
             assert mDelegate.getWindows() != null;
             assert mDelegate.getWindows().getFocusedWindow() != null;
@@ -596,10 +640,40 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
                 mDelegate.getWindows().getFocusedWindow().loadHome();
             });
 
-            mBinding.headlockToggleButton.setChecked(
-                    SettingsStore.getInstance(PlatformActivity.this).isHeadLockEnabled());
+            SettingsStore settings = SettingsStore.getInstance(PlatformActivity.this);
+            mBinding.headlockToggleButton.setChecked(settings.isHeadLockEnabled());
             mBinding.headlockToggleButton.setOnClickListener(v -> {
-                mDelegate.setHeadLockEnabled(mBinding.headlockToggleButton.isChecked());
+                mDelegate.setLockMode(mBinding.headlockToggleButton.isChecked() ? WidgetManagerDelegate.HEAD_LOCK : WidgetManagerDelegate.NO_LOCK);
+            });
+
+            mBinding.newWindowButton.setOnClickListener(v -> {
+                mTrayDelegate.onAddWindowClicked();
+            });
+
+            mBinding.privateButton.setOnClickListener(v -> {
+                mTrayDelegate.onPrivateBrowsingClicked();
+            });
+
+            mBinding.bookmarkButton.setOnClickListener(v -> {
+                mTrayDelegate.onBookmarksClicked();
+            });
+
+            mBinding.downloadsButton.setOnClickListener(v -> {
+                mTrayDelegate.onDownloadsClicked();
+            });
+
+            mBinding.settingsButton.setOnClickListener(v -> {
+                mTrayDelegate.onSettingsClicked();
+            });
+
+            Slider distanceSlider = findViewById(R.id.distance_slider);
+            float maxValue = distanceSlider.getValueTo();
+            distanceSlider.setValue(settings.getWindowDistance() * maxValue);
+            distanceSlider.addOnChangeListener(new Slider.OnChangeListener() {
+                @Override
+                public void onValueChange(@NonNull Slider slider, float value, boolean fromUser) {
+                    settings.setWindowDistance((float) value / maxValue);
+                }
             });
 
             mBinding.playButton.setOnClickListener(v -> {
@@ -659,7 +733,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
                 }
             });
 
-            mGestureDetector = new GestureDetector(getApplicationContext(), new GestureDetector.SimpleOnGestureListener() {
+            mGestureDetector = new GestureDetector(mContext, new GestureDetector.SimpleOnGestureListener() {
                 @Override
                 public boolean onScroll(@Nullable MotionEvent e1, @NonNull MotionEvent e2, float distanceX, float distanceY) {
                     // Use inverted axis so the scroll feels more natural.
@@ -716,6 +790,11 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
         }
     }
 
+    private void startIMUService() {
+        Log.d(LOGTAG, "Starting IMU service");
+        VisionGlass.getInstance().startImu((w, x, y, z) -> queueRunnable(() -> setHead(x, y, z, w)));
+    }
+
     private final DisplayManager.DisplayListener mDisplayListener =
             new DisplayManager.DisplayListener() {
                 private void callUpdateIfIsPresentation(int displayId) {
@@ -729,6 +808,7 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
                 @Override
                 public void onDisplayAdded(int displayId) {
                     Log.d(LOGTAG, "display listener: onDisplayAdded displayId = " + displayId);
+                    startIMUService();
                     callUpdateIfIsPresentation(displayId);
                 }
 
@@ -741,6 +821,15 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
                 @Override
                 public void onDisplayRemoved(int displayId) {
                     Log.d(LOGTAG, "display listener: onDisplayRemoved displayId = " + displayId);
+                    // When the display changes due to disconnection we are forced to recreate the presentation.
+                    // This means that we're forced to recreate all the native resources, which is not really
+                    // possible with the current architecture (for example widgets are only created when
+                    // the application is created). So we play safe and restart the activity instead.
+                    if (mActivePresentation != null && !isFinishing() && mPresentationDisplay.getDisplayId() == displayId) {
+                        runVRBrowserActivityCallback(activity -> activity.saveState());
+                        SystemUtils.restart(getApplicationContext());
+                        return;
+                    }
                     callUpdateIfIsPresentation(displayId);
                 }
             };
@@ -760,9 +849,6 @@ public class PlatformActivity extends FragmentActivity implements SensorEventLis
             mViewModel.updateConnectionState(PhoneUIViewModel.ConnectionState.ACTIVE);
             return;
         }
-
-        Log.d(LOGTAG, "Starting IMU");
-        VisionGlass.getInstance().startImu((w, x, y, z) -> queueRunnable(() -> setHead(x, y, z, w)));
 
         VisionGlassPresentation presentation = new VisionGlassPresentation(this, presentationDisplay);
         Display.Mode[] modes = presentationDisplay.getSupportedModes();

@@ -68,6 +68,8 @@
     <dimen name="keyboard_key_pressed_padding">0dp</dimen>
     <dimen name="keyboard_layout_padding">4dp</dimen>
     <dimen name="keyboard_margin_top_without_autocompletion">37dp</dimen>
+    <dimen name="keyboard_move_bar_width">128dp</dimen>
+    <dimen name="keyboard_move_bar_height">52dp</dimen>
 
     <!-- Settings Dialog -->
     <item name="settings_world_y" format="float" type="dimen">1.6</item>
@@ -206,6 +208,22 @@
     <dimen name="tray_icon_padding_max">10dp</dimen>
     <dimen name="tray_icon_padding_min">8dp</dimen>
 
+    <!-- New Tab -->
+    <dimen name="announcement_item_header_width">576dp</dimen>
+    <dimen name="announcement_item_title_text_size">12sp</dimen>
+    <dimen name="announcement_item_body_text_size">12sp</dimen>
+    <dimen name="announcement_item_image_height">96dp</dimen>
+    <dimen name="announcement_item_width">288dp</dimen>
+    <dimen name="top_site_item_height">72dp</dimen>
+    <dimen name="top_site_item_width">80dp</dimen>
+    <dimen name="top_site_item_title_text_size">12sp</dimen>
+    <dimen name="top_site_item_url_text_size">12sp</dimen>
+    <dimen name="experience_item_height">96dp</dimen>
+    <dimen name="experience_item_width">144dp</dimen>
+    <dimen name="experience_header_item_height">48dp</dimen>
+    <dimen name="experience_item_title_text_size">12sp</dimen>
+    <dimen name="experience_item_url_text_size">12sp</dimen>
+
     <!-- Library -->
     <dimen name="library_item_row_height">38dp</dimen>
     <dimen name="library_item_row_height_narrow">64dp</dimen>
@@ -256,16 +274,19 @@
 
     <!-- General 2nd level settings dimensions -->
     <dimen name="settings_dialog_width">600dp</dimen>
-    <dimen name="settings_dialog_height">360dp</dimen>
+    <dimen name="settings_dialog_height">400dp</dimen>
 
     <!-- Privacy settings -->
     <dimen name="privacy_options_height">490dp</dimen>
 
     <!-- Display settings -->
-    <dimen name="display_options_height">420dp</dimen>
+    <dimen name="display_options_height">450dp</dimen>
 
     <!-- Language and voice settings -->
     <dimen name="language_options_height">400dp</dimen>
+
+    <!-- Controller settings -->
+    <dimen name="controller_options_height">450dp</dimen>
 
     <!-- JS Prompt dialogs -->
     <item name="js_prompt_y_distance" format="float" type="dimen">1.2</item>

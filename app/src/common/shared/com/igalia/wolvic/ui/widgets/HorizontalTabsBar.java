@@ -1,20 +1,23 @@
 package com.igalia.wolvic.ui.widgets;
 
 import android.content.Context;
-import android.widget.Button;
+import android.view.LayoutInflater;
 
+import androidx.annotation.NonNull;
+import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.igalia.wolvic.R;
+import com.igalia.wolvic.VRBrowserActivity;
 import com.igalia.wolvic.browser.SettingsStore;
 import com.igalia.wolvic.browser.engine.SessionStore;
+import com.igalia.wolvic.databinding.TabsBarHorizontalBinding;
 import com.igalia.wolvic.ui.adapters.TabsBarAdapter;
 
 public class HorizontalTabsBar extends AbstractTabsBar {
 
-    protected Button mAddTabButton;
-    protected RecyclerView mTabsList;
+    private TabsBarHorizontalBinding mBinding;
     protected LinearLayoutManager mLayoutManager;
     protected TabsBarAdapter mAdapter;
     protected final TabDelegate mTabDelegate;
@@ -28,17 +31,21 @@ public class HorizontalTabsBar extends AbstractTabsBar {
     private void updateUI() {
         removeAllViews();
 
-        inflate(getContext(), R.layout.tabs_bar_horizontal, this);
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        mBinding = DataBindingUtil.inflate(inflater, R.layout.tabs_bar_horizontal, this, true);
+        mBinding.setLifecycleOwner((VRBrowserActivity) getContext());
+        mBinding.setSyncAccountEnabled(mSyncAccountEnabled);
+        mBinding.setViewModel(mWindowViewModel);
 
-        mAddTabButton = findViewById(R.id.add_tab);
-        mAddTabButton.setOnClickListener(v -> mTabDelegate.onTabAdd());
+        mBinding.addTab.setOnClickListener(v -> mTabDelegate.onTabAdd());
 
-        mTabsList = findViewById(R.id.tabsRecyclerView);
+        mBinding.syncTabs.setOnClickListener(v -> mTabDelegate.onTabSync());
+
         mLayoutManager = new LinearLayoutManager(getContext());
         mLayoutManager.setOrientation(RecyclerView.HORIZONTAL);
-        mTabsList.setLayoutManager(mLayoutManager);
+        mBinding.tabsRecyclerView.setLayoutManager(mLayoutManager);
         mAdapter = new TabsBarAdapter(mTabDelegate, TabsBarAdapter.Orientation.HORIZONTAL);
-        mTabsList.setAdapter(mAdapter);
+        mBinding.tabsRecyclerView.setAdapter(mAdapter);
     }
 
     @Override
@@ -67,5 +74,11 @@ public class HorizontalTabsBar extends AbstractTabsBar {
 
     public void refreshTabs() {
         mAdapter.updateTabs(SessionStore.get().getSessions(mPrivateMode));
+    }
+
+    @Override
+    public void attachToWindow(@NonNull WindowWidget window) {
+        super.attachToWindow(window);
+        mBinding.setViewModel(mWindowViewModel);
     }
 }

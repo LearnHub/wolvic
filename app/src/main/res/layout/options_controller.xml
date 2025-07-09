@@ -3,6 +3,11 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <data>
+        <import type="com.igalia.wolvic.BuildConfig"/>
+        <import type="android.view.View" />
+    </data>
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -49,6 +54,13 @@
                     app:values="@array/developer_options_pointer_modes_values" />
 
                 <com.igalia.wolvic.ui.views.settings.SwitchSetting
+                    android:id="@+id/soundEffectSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="@{BuildConfig.FLAVOR_backend == &quot;chromium&quot; ? View.VISIBLE : View.GONE}"
+                    app:description="@string/display_options_sound_effect" />
+
+                <com.igalia.wolvic.ui.views.settings.SwitchSetting
                     android:id="@+id/haptic_feedback_switch"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -59,6 +71,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:description="@string/controller_options_handtracking" />
+
+                <com.igalia.wolvic.ui.views.settings.RadioGroupVSetting
+                    android:id="@+id/window_selection_radio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:description="@string/controller_options_window_selection"
+                    app:layout="@layout/setting_radio_group_v"
+                    app:options="@array/controller_options_window_selection"
+                    app:values="@array/controller_options_window_selection_values" />
 
                 <com.igalia.wolvic.ui.views.settings.RadioGroupVSetting
                     android:id="@+id/pointer_color_radio"

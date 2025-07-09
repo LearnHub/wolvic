@@ -13,11 +13,13 @@ import android.webkit.URLUtil;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.igalia.wolvic.BuildConfig;
 import com.igalia.wolvic.R;
 import com.igalia.wolvic.browser.SettingsStore;
 import com.igalia.wolvic.browser.api.WSession;
 import com.igalia.wolvic.search.SearchEngineWrapper;
 import com.igalia.wolvic.telemetry.TelemetryService;
+import com.igalia.wolvic.ui.widgets.Windows;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -188,6 +190,15 @@ public class UrlUtils {
         return url != null && url.equalsIgnoreCase(ABOUT_BOOKMARKS);
     }
 
+    private static final String CHROMIUM_NEWTAB = "chrome://newtab/";
+    private static final String GECKO_NEWTAB = "about://newtab";
+    public static final String ABOUT_NEWTAB =
+            BuildConfig.FLAVOR_backend.equalsIgnoreCase("chromium") ? CHROMIUM_NEWTAB : GECKO_NEWTAB;
+
+    public static boolean isNewTabUrl(@Nullable String url) {
+        return url != null && url.equalsIgnoreCase(ABOUT_NEWTAB);
+    }
+
     public static final String ABOUT_DOWNLOADS = "about://downloads";
 
     public static boolean isDownloadsUrl(@Nullable String url) {
@@ -246,12 +257,33 @@ public class UrlUtils {
 
     public static boolean isAboutPage(@Nullable String url) {
         return isHistoryUrl(url) || isBookmarksUrl(url) || isDownloadsUrl(url) || isAddonsUrl(url) ||
-                isWebAppsUrl(url) || isNotificationsUrl(url) || isPrivateUrl(url);
+                isWebAppsUrl(url) || isNotificationsUrl(url) || isPrivateUrl(url) || isNewTabUrl(url);
     }
 
     public static boolean isContentFeed(Context aContext, @Nullable String url) {
         String feed = aContext.getString(R.string.HOMEPAGE_URL);
-        return UrlUtils.getHost(feed).equalsIgnoreCase(UrlUtils.getHost(url));
+        return UrlUtils.isNewTabUrl(url) || UrlUtils.getHost(feed).equalsIgnoreCase(UrlUtils.getHost(url));
+    }
+
+    public static Windows.ContentType getContentType(String url) {
+        if (StringUtils.isEmpty(url)) {
+            return Windows.ContentType.WEB_CONTENT;
+        } else if (isBookmarksUrl(url)) {
+            return Windows.ContentType.BOOKMARKS;
+        } else if (isWebAppsUrl(url)) {
+            return Windows.ContentType.WEB_APPS;
+        } else if (isHistoryUrl(url)) {
+            return Windows.ContentType.HISTORY;
+        } else if (isDownloadsUrl(url)) {
+            return Windows.ContentType.DOWNLOADS;
+        } else if (isAddonsUrl(url)) {
+            return Windows.ContentType.ADDONS;
+        } else if (isNotificationsUrl(url)) {
+            return Windows.ContentType.NOTIFICATIONS;
+        } else if (isNewTabUrl(url)) {
+            return Windows.ContentType.NEW_TAB;
+        }
+        return Windows.ContentType.WEB_CONTENT;
     }
 
     public static String getHost(String uri) {

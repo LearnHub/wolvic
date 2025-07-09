@@ -41,10 +41,13 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import mozilla.components.concept.fetch.Request;
 import mozilla.components.concept.fetch.Response;
@@ -75,6 +78,11 @@ public class SettingsStore {
     public static final int TABS_LOCATION_HORIZONTAL = 1;
     public static final int TABS_LOCATION_VERTICAL = 2;
 
+    @IntDef(value = {WINDOW_SELECTION_METHOD_CLICK, WINDOW_SELECTION_METHOD_HOVER})
+    public @interface WindowSelectionMethod {}
+    public static final int WINDOW_SELECTION_METHOD_CLICK = 0;
+    public static final int WINDOW_SELECTION_METHOD_HOVER = 1;
+
     private Context mContext;
     private SharedPreferences mPrefs;
     private SettingsViewModel mSettingsViewModel;
@@ -84,7 +92,6 @@ public class SettingsStore {
     public final static boolean ENV_OVERRIDE_DEFAULT = false;
     public final static boolean SYSTEM_ROOT_CA_DEFAULT = false;
     public final static boolean UI_HARDWARE_ACCELERATION_DEFAULT = true;
-    public final static boolean UI_HARDWARE_ACCELERATION_DEFAULT_WAVEVR = false;
     public final static boolean UI_HARDWARE_ACCELERATION_DEFAULT_MAGIC_LEAP_2 = false;
     public final static boolean PERFORMANCE_MONITOR_DEFAULT = true;
     public final static boolean DRM_PLAYBACK_DEFAULT = false;
@@ -142,6 +149,7 @@ public class SettingsStore {
     }
     public final static WindowSizePreset WINDOW_SIZE_PRESET_DEFAULT = WindowSizePreset.PRESET_0;
 
+    public final static @WindowSelectionMethod int WINDOW_SELECTION_METHOD_DEFAULT = WINDOW_SELECTION_METHOD_HOVER;
     public final static int POINTER_COLOR_DEFAULT_DEFAULT = Color.parseColor("#FFFFFF");
     public final static int SCROLL_DIRECTION_DEFAULT = 0;
     public final static String ENV_DEFAULT = "cyberpunk";
@@ -158,6 +166,7 @@ public class SettingsStore {
     private final static long CRASH_RESTART_DELTA = 2000;
     public final static boolean AUTOPLAY_ENABLED = false;
     public final static boolean HEAD_LOCK_DEFAULT = false;
+    public final static boolean OPEN_TABS_IN_BACKGROUND_DEFAULT = true;
     public final static boolean DEBUG_LOGGING_DEFAULT = BuildConfig.DEBUG;
     public final static boolean POP_UPS_BLOCKING_DEFAULT = true;
     public final static boolean WEBXR_ENABLED_DEFAULT = true;
@@ -206,19 +215,39 @@ public class SettingsStore {
         String json = mPrefs.getString(mContext.getString(R.string.settings_key_remote_props), null);
         mSettingsViewModel.setProps(json);
 
+        String announcementsJson = mPrefs.getString(mContext.getString(R.string.settings_key_remote_announcements), null);
+        mSettingsViewModel.setAnnouncements(announcementsJson);
+
+        String experiencesJson = mPrefs.getString(mContext.getString(R.string.settings_key_remote_experiences), null);
+        mSettingsViewModel.setExperiences(experiencesJson);
+
+        String heyVRJson = mPrefs.getString(mContext.getString(R.string.settings_key_heyvr_experiences), null);
+        mSettingsViewModel.setHeyVRExperiences(heyVRJson);
+
         mSettingsViewModel.refresh();
 
-        update();
+        updateRemoteContent(BuildConfig.PROPS_ENDPOINT,
+                R.string.settings_key_remote_props,
+                mSettingsViewModel::setProps);
+        updateRemoteContent(BuildConfig.ANNOUNCEMENTS_ENDPOINT,
+                R.string.settings_key_remote_announcements,
+                mSettingsViewModel::setAnnouncements);
+        updateRemoteContent(BuildConfig.EXPERIENCES_ENDPOINT,
+                R.string.settings_key_remote_experiences,
+                mSettingsViewModel::setExperiences);
+        updateRemoteContent(BuildConfig.HEYVR_ENDPOINT,
+                R.string.settings_key_heyvr_experiences,
+                mSettingsViewModel::setHeyVRExperiences);
     }
 
     /**
      * Synchronizes the remote properties with the settings storage and notifies the model.
      * Any consumer listening to the SettingsViewModel will get notified of the properties updates.
      */
-    private void update() {
+    private void updateRemoteContent(String endpoint, int prefsKey, Consumer<String> onContentAvailable) {
         ((VRBrowserApplication) mContext.getApplicationContext()).getExecutors().backgroundThread().post(() -> {
             Request request = new Request(
-                    BuildConfig.PROPS_ENDPOINT,
+                    endpoint,
                     Request.Method.GET,
                     null,
                     null,
@@ -235,16 +264,47 @@ public class SettingsStore {
                 if (response.getStatus() == 200) {
                     String json = response.getBody().string(StandardCharsets.UTF_8);
                     SharedPreferences.Editor editor = mPrefs.edit();
-                    editor.putString(mContext.getString(R.string.settings_key_remote_props), json);
+                    editor.putString(mContext.getString(prefsKey), json);
                     editor.apply();
-
-                    mSettingsViewModel.setProps(json);
+                    // Once the JSON content has been received, execute the callback.
+                    onContentAvailable.accept(json);
                 }
-
             } catch (IOException e) {
-                Log.d(LOGTAG, "Remote properties error: " + e.getLocalizedMessage());
+                Log.d(LOGTAG, "Remote data fetch error for " + endpoint + ": " + e.getLocalizedMessage());
             }
         });
+    }
+
+    public Set<String> getDismissedAnnouncementIds() {
+        Set<String> dismissedIds = new HashSet<>();
+        String json = mPrefs.getString(mContext.getString(R.string.settings_key_dismissed_remote_announcements), "[]");
+        try {
+            JSONArray jsonArray = new JSONArray(json);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                dismissedIds.add(jsonArray.getString(i));
+            }
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Error loading dismissed announcements: " + e.getMessage());
+        }
+        return dismissedIds;
+    }
+
+    public void addDismissedAnnouncementId(String announcementId) {
+        Set<String> dismissedIds = getDismissedAnnouncementIds();
+        if (dismissedIds.contains(announcementId)) {
+            return;
+        }
+
+        dismissedIds.add(announcementId);
+
+        JSONArray jsonArray = new JSONArray();
+        for (String id : dismissedIds) {
+            jsonArray.put(id);
+        }
+
+        SharedPreferences.Editor editor = mPrefs.edit();
+        editor.putString(mContext.getString(R.string.settings_key_dismissed_remote_announcements), jsonArray.toString());
+        editor.apply();
     }
 
     public boolean isCrashReportingEnabled() {
@@ -398,6 +458,17 @@ public class SettingsStore {
         editor.apply();
     }
 
+    public boolean isOpenTabsInBackgroundEnabled() {
+        return mPrefs.getBoolean(
+                mContext.getString(R.string.settings_key_open_tabs_in_background), OPEN_TABS_IN_BACKGROUND_DEFAULT);
+    }
+
+    public void setOpenTabsInBackgroundEnabled(boolean isEnabled) {
+        SharedPreferences.Editor editor = mPrefs.edit();
+        editor.putBoolean(mContext.getString(R.string.settings_key_open_tabs_in_background), isEnabled);
+        editor.apply();
+    }
+
     @TabsLocation
     public int getTabsLocation() {
         return mPrefs.getInt(
@@ -423,9 +494,7 @@ public class SettingsStore {
 
     public boolean isUIHardwareAccelerationEnabled() {
         boolean defaultValue = UI_HARDWARE_ACCELERATION_DEFAULT;
-        if (DeviceType.isWaveBuild()) {
-            defaultValue = UI_HARDWARE_ACCELERATION_DEFAULT_WAVEVR;
-        } else if (DeviceType.getType() == DeviceType.MagicLeap2) {
+        if (DeviceType.getType() == DeviceType.MagicLeap2) {
             // Hardware acceleration causes several UI glitches when rendering widgets and
             // also locks un the UI thread for several seconds.
             defaultValue = UI_HARDWARE_ACCELERATION_DEFAULT_MAGIC_LEAP_2;
@@ -578,6 +647,17 @@ public class SettingsStore {
         editor.apply();
     }
 
+    @WindowSelectionMethod
+    public int getWindowSelectionMethod() {
+        return mPrefs.getInt(mContext.getString(R.string.settings_key_window_selection_method), WINDOW_SELECTION_METHOD_DEFAULT);
+    }
+
+    public void setWindowSelectionMethod(int method) {
+        SharedPreferences.Editor editor = mPrefs.edit();
+        editor.putInt(mContext.getString(R.string.settings_key_window_selection_method), method);
+        editor.apply();
+    }
+
     public int getPointerColor() {
         return mPrefs.getInt(
                 mContext.getString(R.string.settings_key_pointer_color), POINTER_COLOR_DEFAULT_DEFAULT);
@@ -619,7 +699,7 @@ public class SettingsStore {
     }
 
     public boolean getLayersEnabled() {
-        if ((DeviceType.isOculusBuild() || DeviceType.isPicoXR()) && !mDisableLayers) {
+        if ((DeviceType.isOculusBuild() || DeviceType.isPicoXR())  || DeviceType.isPfdmXR() && !mDisableLayers) {
             Log.i(LOGTAG, "Layers are enabled");
             return true;
         }

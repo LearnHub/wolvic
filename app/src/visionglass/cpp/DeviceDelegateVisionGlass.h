@@ -30,7 +30,7 @@ public:
   const vrb::Matrix& GetHeadTransform() const override;
   const vrb::Matrix& GetReorientTransform() const override;
   void SetReorientTransform(const vrb::Matrix& aMatrix) override;
-  void Reorient() override;
+  void Reorient(const vrb::Matrix&, ReorientMode) override;
   void SetClearColor(const vrb::Color& aColor) override;
   void SetClipPlanes(const float aNear, const float aFar) override;
   void SetControllerDelegate(ControllerDelegatePtr& aController) override;
@@ -51,8 +51,8 @@ public:
   void Resume();
   void TouchEvent(const bool aDown, const float aX, const float aY);
   void ControllerButtonPressed(const bool aDown);
-  void setHead(const float aX, const float aY, const float aZ, const float aW);
-  void setControllerOrientation(const float aX, const float aY, const float aZ, const float aW);
+  void setHead(const double aX, const double aY, const double aZ, const double aW);
+  void setControllerOrientation(const double aX, const double aY, const double aZ, const double aW);
   void CalibrateController();
 protected:
   struct State;

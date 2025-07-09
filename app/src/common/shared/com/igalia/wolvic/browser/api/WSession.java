@@ -23,6 +23,7 @@ import com.igalia.wolvic.ui.adapters.WebApp;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.file.WatchEvent;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.List;
@@ -317,6 +318,29 @@ public interface WSession {
          */
         @UiThread
         default void onShowDynamicToolbar(@NonNull final WSession aSession) {}
+
+        public interface OnPaymentHandlerCallback {
+            void onDismiss();
+        }
+
+        /**
+         * The view should display its payment handler, overlayed on the active tab.
+         *
+         * @param aSession ISession that initiated the callback.
+         * @param aDisplay IDisplay that initiated the callback.
+         * @param callback Callback interface.
+         */
+        @UiThread
+        default void onShowPaymentHandler(@NonNull final WSession aSession,
+                @NonNull final WDisplay aDisplay,
+                @NonNull final OnPaymentHandlerCallback callback) {}
+        /**
+         * The view should hide its payment handler.
+         *
+         * @param aSession ISession that initiated the callback.
+         */
+        @UiThread
+        default void onHidePaymentHandler(@NonNull final WSession aSession) {}
     }
 
     interface NavigationDelegate {
@@ -2585,10 +2609,6 @@ public interface WSession {
     @NonNull
     String getDefaultUserAgent(final int mode);
 
-    @AnyThread
-    @NonNull
-    WSession.SessionFinder getSessionFinder();
-
     /** Exits fullscreen mode */
     @AnyThread
     void exitFullScreen();
@@ -2669,6 +2689,14 @@ public interface WSession {
         @AnyThread
         void setDisplayFlags(int flags);
     }
+
+    interface GetSessionFinderCallback {
+        @AnyThread
+        void onFinderAvailable(WSession.SessionFinder finder);
+    }
+
+    @AnyThread
+    void getSessionFinderAsync(WSession.GetSessionFinderCallback callback);
 
     /**
      * Acquire the WDisplay instance for providing the session with a drawing Surface. Be sure to

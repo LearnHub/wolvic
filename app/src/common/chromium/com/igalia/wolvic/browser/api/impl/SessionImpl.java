@@ -9,7 +9,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.igalia.wolvic.browser.SettingsStore;
-import com.igalia.wolvic.browser.api.WAutocomplete;
 import com.igalia.wolvic.browser.api.WContentBlocking;
 import com.igalia.wolvic.browser.api.WDisplay;
 import com.igalia.wolvic.browser.api.WMediaSession;
@@ -25,6 +24,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.wolvic.DownloadManagerBridge;
 import org.chromium.wolvic.PasswordForm;
 import org.chromium.wolvic.PermissionManagerBridge;
+import org.chromium.wolvic.TabCompositorView;
 import org.chromium.wolvic.UserDialogManagerBridge;
 
 import java.io.InputStream;
@@ -49,12 +49,20 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     WMediaSession.Delegate mMediaSessionDelegate;
     TextInputImpl mTextInput;
     PanZoomControllerImpl mPanZoomController;
+    SessionFinderImpl mSessionFinder;
     private PermissionManagerBridge.Delegate mChromiumPermissionDelegate;
     private String mInitialUri;
     private WebContents mWebContents;
     private TabImpl mTab;
     private ReadyCallback mReadyCallback = new ReadyCallback();
     private UrlUtilsVisitor mUrlUtilsVisitor;
+    private WSession.GetSessionFinderCallback mGetSessionFinderCallback;
+
+    private void createSessionFinderIfNeeded() {
+        if (mSessionFinder != null)
+            return;
+        mSessionFinder = new SessionFinderImpl(mTab.getActiveWebContents());
+    }
 
     private class ReadyCallback implements RuntimeImpl.Callback {
         @Override
@@ -62,6 +70,11 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
             assert mTab == null;
             mTab = new TabImpl(
                     mRuntime.getContainerView().getContext(), SessionImpl.this, mWebContents);
+            if (mGetSessionFinderCallback != null) {
+                createSessionFinderIfNeeded();
+                mGetSessionFinderCallback.onFinderAvailable(mSessionFinder);
+                mGetSessionFinderCallback = null;
+            }
             if (mInitialUri != null) {
                 assert mWebContents == null;
                 mTab.loadUrl(mInitialUri);
@@ -114,8 +127,8 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
         if (mTab == null)
             return;
 
-        assert mTab.getContentView() != null;
-        WebContents webContents = mTab.getContentView().getWebContents();
+        assert mTab.getActiveWebContents() != null;
+        WebContents webContents = mTab.getActiveWebContents();
         if (active) {
             webContents.onShow();
         } else {
@@ -129,8 +142,8 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     public void setFocused(boolean focused) {
         if (mTab == null)
             return;
-        assert mTab.getContentView() != null;
-        mTab.getContentView().getWebContents().setFocus(focused);
+        assert mTab.getActiveWebContents() != null;
+        mTab.getActiveWebContents().setFocus(focused);
     }
 
     @Override
@@ -186,11 +199,16 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
         return mSettings.getDefaultUserAgent(mode);
     }
 
-    @Nullable
     @Override
-    public SessionFinder getSessionFinder() {
-        // TODO: Implement session finder
-        return null;
+    public void getSessionFinderAsync(WSession.GetSessionFinderCallback callback) {
+        if (mTab == null) {
+            if (mGetSessionFinderCallback == null) {
+                mGetSessionFinderCallback = callback;
+            }
+            return;
+        }
+        createSessionFinderIfNeeded();
+        callback.onFinderAvailable(mSessionFinder);
     }
 
     @Override
@@ -212,6 +230,20 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     @Override
     public void releaseDisplay(@NonNull WDisplay display) {
         mRuntime.getContainerView().removeView(mTab.getCompositorView());
+        getTextInput().setView(null);
+    }
+
+    public WDisplay acquireOverlayDisplay(TabCompositorView compositorView) {
+        SettingsStore settings = SettingsStore.getInstance(mRuntime.getContext());
+        WDisplay display = new DisplayImpl(this, compositorView);
+        mRuntime.getContainerView().addView(compositorView,
+                new ViewGroup.LayoutParams(settings.getWindowWidth() / 2, settings.getWindowHeight() / 2));
+        getTextInput().setView(getContentView());
+        return display;
+    }
+
+    public void releaseOverlayDisplay(TabCompositorView compositorView) {
+        mRuntime.getContainerView().removeView(compositorView);
         getTextInput().setView(null);
     }
 
@@ -404,6 +436,9 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
         return mSelectionActionDelegate;
     }
 
+    @Nullable
+    public TabWebContentsDelegate.FindInPageDelegate getFindInPageDelegate() { return mSessionFinder; }
+
     @Override
     public void newDownload(String url) {
         if (mContentDelegate == null)
@@ -457,7 +492,7 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     }
 
     public ViewGroup getContentView() {
-        return mTab != null ? mTab.getContentView() : null;
+        return mTab != null ? mTab.getActiveContentView() : null;
     }
 
     // The onReadyCallback() mechanism is really limited because it heavily depends on renderers
