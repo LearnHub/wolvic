@@ -136,7 +136,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     public static final String EXTRA_KIOSK = "kiosk";
     private static final long BATTERY_UPDATE_INTERVAL = 60 * 1_000_000_000L; // 60 seconds
 
-    private boolean mLaunchImmersive = false;
+    public static final String EXTRA_LAUNCH_FULL_UI = "launch_full_ui";
+    private boolean mLaunchImmersive = true;
     public static final String EXTRA_LAUNCH_IMMERSIVE = "launch_immersive";
     // Element where a click would be simulated to launch the WebXR experience.
     public static final String EXTRA_LAUNCH_IMMERSIVE_PARENT_XPATH = "launch_immersive_parent_xpath";
@@ -268,8 +269,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     private PlatformActivityPlugin mPlatformPlugin;
     private int mLastMotionEventWidgetHandle;
     private boolean mIsEyeTrackingSupported;
-    private String mImmersiveParentElementXPath;
-    private String mImmersiveTargetElementXPath;
+    private String mImmersiveParentElementXPath = "";
+    private String mImmersiveTargetElementXPath = "";
 
     private ViewTreeObserver.OnGlobalFocusChangeListener globalFocusListener = new ViewTreeObserver.OnGlobalFocusChangeListener() {
         @Override
@@ -875,6 +876,9 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         } else {
             targetUri = intent.getData();
             extras = intent.getExtras();
+
+            if (targetUri == null)
+                targetUri = Uri.parse("http://classvr.com");
         }
 
         if (extras != null) {
@@ -932,7 +936,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                 mImmersiveTargetElementXPath = extras.getString(EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH);
 
                 // Open in immersive requires specific information to be present
-                mLaunchImmersive = targetUri != null && mImmersiveTargetElementXPath != null;
+                //mLaunchImmersive = targetUri != null && mImmersiveTargetElementXPath != null;
             }
         }
 
@@ -941,6 +945,10 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             Log.d(LOGTAG, "Loading URI from intent: " + targetUri);
 
             int location = Windows.OPEN_IN_FOREGROUND;
+
+            // By default we always launch in Immersive/Kiosk Mode.
+            // As such this will allow to launch the app with full UI mode if required.
+            mLaunchImmersive = !getIntent().getBooleanExtra(EXTRA_LAUNCH_FULL_UI, false);
 
             if (openInKioskMode) {
                 // FIXME this might not work as expected if the app was already running
@@ -1928,7 +1936,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     public boolean isLaunchImmersive() {
         // This method may be called before we have parsed the current Intent.
         return mLaunchImmersive ||
-                (getIntent() != null && getIntent().getBooleanExtra(EXTRA_LAUNCH_IMMERSIVE, false)
+                (getIntent() != null && getIntent().getBooleanExtra(EXTRA_LAUNCH_IMMERSIVE, true)
                         && getIntent().getStringExtra(EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH) != null);
     }
 
