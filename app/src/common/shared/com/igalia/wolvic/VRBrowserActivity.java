@@ -407,11 +407,14 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             setPointerMode(mSettings.getPointerMode());
 
         // Show the launch dialogs, if needed.
+        // DISABLE Policy Legal Documents on first startup.
+        /*
         if (!showTermsServiceDialogIfNeeded()) {
             if (!showPrivacyDialogIfNeeded()) {
                 showWhatsNewDialogIfNeeded();
             }
         }
+         */
 
         getLifecycleRegistry().setCurrentState(Lifecycle.State.CREATED);
     }
