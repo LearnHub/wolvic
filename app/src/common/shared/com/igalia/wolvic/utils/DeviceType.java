@@ -93,6 +93,7 @@ public class DeviceType {
                 break;
             case SkyworthAVN:
                 mDeviceName = "Skyworth XR2 AVN";
+                break;
             case PfdmYVR1:
                 mDeviceName = "PFDM YVR1";
                 break;
