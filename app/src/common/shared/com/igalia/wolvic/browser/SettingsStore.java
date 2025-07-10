@@ -108,13 +108,13 @@ public class SettingsStore {
     // The DPI is calculated so the default window has a logical width of 1024 CSS pixels.
     // For a density of 1.0, the DPI is 128 and the texture matches the logical size of the webpage.
     // For a density of 1.5, the DPI of 192 and the resolution of the texture is twice the world size of the window.
-    public final static int DISPLAY_DPI_BASE = 36;
+    public final static int DISPLAY_DPI_BASE = 54;
     public final static int DISPLAY_DPI_DEFAULT = (int) (DISPLAY_DENSITY_DEFAULT * DISPLAY_DPI_BASE);
     public final static int DISPLAY_DPI_MIN = 70;
     public final static int DISPLAY_DPI_MAX = 300;
     // World size: multiply by density to get the available resolution for the Web engine.
-    public final static int WINDOW_WIDTH_DEFAULT = 800;
-    public final static int WINDOW_HEIGHT_DEFAULT = 450;
+    public final static int WINDOW_WIDTH_DEFAULT = 900;
+    public final static int WINDOW_HEIGHT_DEFAULT = 600;
     // The maximum size is computed so the resulting texture fits within 2560x2560.
     public final static int MAX_WINDOW_WIDTH_DEFAULT = 1200;
     public final static int MAX_WINDOW_HEIGHT_DEFAULT = 800;
@@ -147,7 +147,7 @@ public class SettingsStore {
             return WINDOW_SIZE_PRESET_DEFAULT;
         }
     }
-    public final static WindowSizePreset WINDOW_SIZE_PRESET_DEFAULT = WindowSizePreset.PRESET_0;
+    public final static WindowSizePreset WINDOW_SIZE_PRESET_DEFAULT = WindowSizePreset.PRESET_3;
 
     public final static @WindowSelectionMethod int WINDOW_SELECTION_METHOD_DEFAULT = WINDOW_SELECTION_METHOD_HOVER;
     public final static int POINTER_COLOR_DEFAULT_DEFAULT = Color.parseColor("#FFFFFF");
@@ -784,7 +784,7 @@ public class SettingsStore {
     }
 
     public float getCylinderDensity() {
-        return mPrefs.getFloat(mContext.getString(R.string.settings_key_cylinder_density),  0);
+        return mPrefs.getFloat(mContext.getString(R.string.settings_key_cylinder_density),  CYLINDER_DENSITY_ENABLED_DEFAULT);
     }
 
     public void setCylinderDensity(float aDensity) {
