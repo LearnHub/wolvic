@@ -159,6 +159,7 @@ PerformanceObserver::PerformanceRestored(const double& aTargetFrameRate, const d
 } // namespace
 
 namespace crow {
+    bool g_is_pose_override = false;
 struct BrowserWorld::State {
   BrowserWorldWeakPtr self;
   std::vector<WidgetPtr> widgets;
@@ -1822,6 +1823,11 @@ BrowserWorld::SetHandTrackingEnabled(bool value) {
     m.device->SetHandTrackingEnabled(value);
 }
 
+void
+BrowserWorld::SetPoseOverrive(bool value){
+    crow::g_is_pose_override = value;
+}
+
 JNIEnv*
 BrowserWorld::GetJNIEnv() const {
   ASSERT_ON_RENDER_THREAD(nullptr);
@@ -2336,6 +2342,11 @@ JNI_METHOD(void, setPointerModeNative)
 JNI_METHOD(void, setHandTrackingEnabledNative)
 (JNIEnv*, jobject, jboolean value) {
     crow::BrowserWorld::Instance().SetHandTrackingEnabled(value);
+}
+
+JNI_METHOD(void, setPoseOverrideNative)
+(JNIEnv*, jobject, jboolean value) {
+    crow::BrowserWorld::Instance().SetPoseOverrive(value);
 }
 
 } // extern "C"

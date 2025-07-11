@@ -80,6 +80,7 @@ public:
   void SetCPULevel(const device::CPULevel aLevel);
   void SetPointerMode(crow::DeviceDelegate::PointerMode);
   void SetHandTrackingEnabled(bool);
+  void SetPoseOverrive(bool value);
   JNIEnv* GetJNIEnv() const;
   void OnReorient() override;
 #if HVR

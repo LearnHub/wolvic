@@ -107,6 +107,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -136,14 +137,48 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     public static final String EXTRA_KIOSK = "kiosk";
     private static final long BATTERY_UPDATE_INTERVAL = 60 * 1_000_000_000L; // 60 seconds
 
-    public static final String EXTRA_LAUNCH_FULL_UI = "launch_full_ui";
     private boolean mLaunchImmersive = true;
+    public static final String EXTRA_LAUNCH_FULL_UI = "launch_full_ui";
     public static final String EXTRA_LAUNCH_IMMERSIVE = "launch_immersive";
     // Element where a click would be simulated to launch the WebXR experience.
     public static final String EXTRA_LAUNCH_IMMERSIVE_PARENT_XPATH = "launch_immersive_parent_xpath";
     public static final String EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH = "launch_immersive_element_xpath";
 
     private boolean shouldRestoreHeadLockOnVRVideoExit;
+
+    private boolean mPoseOverride = false;
+    public static final String EXTRA_POSE_OVERRIDE = "pose_override";
+
+    private static final List<String> HOSTS_WITH_OVERRIDE = Arrays.asList(
+            "moonrider.xyz",
+            "aframe.io/a-painter"
+    );
+
+    public static boolean isDomainWithOverride(Uri uri) {
+        if (uri == null || uri.getHost() == null) {
+            return false;
+        }
+
+        String host = uri.getHost().toLowerCase();
+        String path = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
+        String hostAndPath = host + (path.endsWith("/") ? path.substring(0, path.length() - 1) : path);
+
+        for (String valid : HOSTS_WITH_OVERRIDE) {
+            if (valid.contains("/")) {
+                // Host + Path match
+                if (hostAndPath.equals(valid)) {
+                    return true;
+                }
+            } else {
+                // Only host match (any path is ok)
+                if (host.equals(valid) || host.endsWith("." + valid)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     private BroadcastReceiver mCrashReceiver = new BroadcastReceiver() {
         @Override
@@ -881,7 +916,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             extras = intent.getExtras();
 
             if (targetUri == null)
-                targetUri = Uri.parse("http://classvr.com");
+                targetUri = Uri.parse("https://classvr.com");
         }
 
         if (extras != null) {
@@ -952,6 +987,11 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
             // By default we always launch in Immersive/Kiosk Mode.
             // As such this will allow to launch the app with full UI mode if required.
             mLaunchImmersive = !getIntent().getBooleanExtra(EXTRA_LAUNCH_FULL_UI, false);
+
+            // Do we have an override for the pose?
+            mPoseOverride = isDomainWithOverride(targetUri);
+            mPoseOverride |= getIntent().getBooleanExtra(EXTRA_POSE_OVERRIDE, false);
+            queueRunnable(() -> setPoseOverrideNative(mPoseOverride));
 
             if (openInKioskMode) {
                 // FIXME this might not work as expected if the app was already running
@@ -2334,5 +2374,5 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     private native void setIsServo(boolean aIsServo);
     private native void setPointerModeNative(@PointerMode int aMode);
     private native void setHandTrackingEnabledNative(boolean value);
-
+    private native void setPoseOverrideNative(boolean value);
 }

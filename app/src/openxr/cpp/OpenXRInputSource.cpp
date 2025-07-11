@@ -10,6 +10,9 @@
 
 namespace crow {
 
+// "extern" for now, since I don't want to polute and make futher git merges more complicated, for now.
+extern bool g_is_pose_override;
+
 // When doing scrolling with eye tracking we wait until this threshold is reached to start scrolling.
 // Otherwise single (slow) clicks would easily trigger scrolling.
 const XrDuration kEyeTrackingScrollThreshold = 250000000;
@@ -899,7 +902,13 @@ void OpenXRInputSource::Update(const XrFrameState& frameState, XrSpace localSpac
         poseLocation = {XR_TYPE_SPACE_LOCATION};
         CHECK_XRCMD(GetPoseState(mGripAction, mGripSpace, localSpace, frameState, isPoseActive,
                                  poseLocation));
-        if (isPoseActive) {
+        if (isPoseActive)
+        {
+            // Some WebXR apps have a wrong pose in Chromium back-end
+            // We need to correct it here and not global One in DeviceDelegateOpenXR.cpp
+            if (g_is_pose_override)
+            {poseLocation.pose.position.y -= 0.4f;}
+            else
             adjustPoseLocation(offsets);
             auto gripTransform = XrPoseToMatrix(poseLocation.pose);
             delegate.SetImmersiveBeamTransform(mIndex,

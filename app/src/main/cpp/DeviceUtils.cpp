@@ -160,7 +160,7 @@ device::DeviceType DeviceUtils::GetDeviceTypeFromSystem() {
         deviceNamesMap.emplace("VRX", device::LenovoVRX);
         deviceNamesMap.emplace("Magic Leap 2", device::MagicLeap2);
         deviceNamesMap.emplace("Pico Neo 3", device::PicoNeo3);
-        deviceNamesMap.emplace("CVR655128", device::SkyworthAVN);
+        deviceNamesMap.emplace("AVN", device::SkyworthAVN);
         deviceNamesMap.emplace("YVR 1", device::PfdmYVR1);
         deviceNamesMap.emplace("YVR 2", device::PfdmYVR2);
         deviceNamesMap.emplace("PFDM MR", device::PfdmMR);
