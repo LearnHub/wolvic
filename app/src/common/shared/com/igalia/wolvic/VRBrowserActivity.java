@@ -969,13 +969,13 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
             openInKioskMode = extras.getBoolean(EXTRA_KIOSK, false);
 
-            if (extras.getBoolean(EXTRA_LAUNCH_IMMERSIVE)) {
+            //if (extras.getBoolean(EXTRA_LAUNCH_IMMERSIVE)){
                 mImmersiveParentElementXPath = extras.getString(EXTRA_LAUNCH_IMMERSIVE_PARENT_XPATH);
                 mImmersiveTargetElementXPath = extras.getString(EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH);
 
                 // Open in immersive requires specific information to be present
                 //mLaunchImmersive = targetUri != null && mImmersiveTargetElementXPath != null;
-            }
+            //}
         }
 
         // If there is a target URI we open it

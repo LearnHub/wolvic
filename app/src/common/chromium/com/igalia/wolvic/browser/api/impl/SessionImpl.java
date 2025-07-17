@@ -1,7 +1,11 @@
 package com.igalia.wolvic.browser.api.impl;
 
+import static com.igalia.wolvic.ui.widgets.Windows.TARGET_ELEMENT_XPATH_PARAMETER;
+
 import android.graphics.Matrix;
+import android.net.Uri;
 import android.util.Base64;
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.AnyThread;
@@ -33,6 +37,48 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.content_public.browser.GlobalRenderFrameHostId;
+import org.chromium.url.GURL;
+import android.text.TextUtils;
+import org.json.JSONObject;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.content_public.browser.NavigationHandle;
+
+
+class XPathUtils
+{
+    // Matches [@attr=value] where value has no quotes or equals
+    private static final Pattern ATTR_UNQUOTED =
+            Pattern.compile("\\[@([^=\\]\\s]+)=([^\\]\"'=\\s]+)\\]");
+    /**
+     * Wraps all unquoted attribute tests in double-quotes.
+     * e.g. //div[@foo=bar and @baz=qux] → //div[@foo="bar" and @baz="qux"]
+     */
+    public static String ensureAttributesQuoted(String rawXPath) {
+        Matcher m = ATTR_UNQUOTED.matcher(rawXPath);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String attr = m.group(1);
+            String val  = m.group(2);
+            // Replace with [@attr="val"]
+            m.appendReplacement(sb, "[@"
+                    + attr
+                    + "=\""
+                    + val
+                    + "\"]");
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+}
 
 public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     RuntimeImpl mRuntime;
@@ -68,8 +114,70 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
         @Override
         public void onReady() {
             assert mTab == null;
-            mTab = new TabImpl(
-                    mRuntime.getContainerView().getContext(), SessionImpl.this, mWebContents);
+            mTab = new TabImpl(mRuntime.getContainerView().getContext(), SessionImpl.this, mWebContents);
+            final WebContents wc = mTab.getActiveWebContents();
+            if (wc != null) {
+                new WebContentsObserver(wc)
+                {
+                    @Override
+                    public void didFinishLoadInPrimaryMainFrame(GlobalRenderFrameHostId rfhId, GURL gurl, boolean isKnownValid, int rfhLifecycleState)
+                    {
+                        // Parse out any XPath parameters from the original URI
+                        String loadedUrl = gurl.getSpec();
+                        String parentXPath = null;
+                        String targetXPath = null;
+                        if (loadedUrl != null)
+                        {
+                            Uri uri = Uri.parse(loadedUrl);
+                            targetXPath = uri.getQueryParameter(TARGET_ELEMENT_XPATH_PARAMETER);
+                        }
+
+                        String launchTargetXPath = targetXPath;
+
+                        // If the Intent supplied a target XPath, use it
+                        if (!TextUtils.isEmpty(launchTargetXPath))
+                        {
+                            launchTargetXPath = XPathUtils.ensureAttributesQuoted(launchTargetXPath);
+                            Log.d("DEBUG_PARAM", ">> URL = " + loadedUrl);
+                            Log.d("DEBUG_PARAM", ">> PARAM = " + launchTargetXPath);
+
+                            String jsXPath =
+                                    "javascript:(function(){" +
+                                            "  function tryClick(){" +
+                                            "    var node = document.evaluate(" +
+                                            JSONObject.quote(launchTargetXPath) +
+                                            ", document, null," +
+                                            "XPathResult.FIRST_ORDERED_NODE_TYPE, null)" +
+                                            "      .singleNodeValue;" +
+                                            "    if (node && node.click){" +
+                                            "      node.click();" +
+                                            "      node.click();" +
+                                            "      return;" +
+                                            "    }" +
+                                            "    setTimeout(tryClick, 100);" +
+                                            "  }" +
+
+                                            // Called after window.onload (if not already loaded)
+                                            "  function startClicking(){" +
+                                            "    setTimeout(tryClick, 1000);" +
+                                            "  }" +
+
+                                            // If page is already fully loaded, kick off; otherwise wait for load
+                                            "  if (document.readyState === 'complete'){" +
+                                            "    startClicking();" +
+                                            "  } else {" +
+                                            "    window.addEventListener('load', startClicking);" +
+                                            "  }" +
+                                            "})();";
+
+                            mTab.loadUrl("javascript:" + jsXPath);
+                            destroy();
+                            return;
+                        }
+                    }
+                };
+            }
+            
             if (mGetSessionFinderCallback != null) {
                 createSessionFinderIfNeeded();
                 mGetSessionFinderCallback.onFinderAvailable(mSessionFinder);

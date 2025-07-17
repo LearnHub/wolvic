@@ -89,7 +89,7 @@ public class Windows implements TrayListener, TopBarWidget.Delegate, TitleBarWid
 
     // launch Wolvic in immersive mode automatically
     private static final String PARENT_ELEMENT_XPATH_PARAMETER = "wolvic-launchimmersive-parentElementXPath";
-    private static final String TARGET_ELEMENT_XPATH_PARAMETER = "wolvic-launchimmersive-targetElementXPath";
+    public static final String TARGET_ELEMENT_XPATH_PARAMETER = "wolvic-launchimmersive-targetElementXPath"; // Make it public so we can parse the URL
     private static final String IMMERSIVE_EXTENSION_ID = "wolvic-launchimmersive@igalia.com";
     private static final String IMMERSIVE_EXTENSION_URL = "resource://android/assets/extensions/wolvic_launchimmersive/";
 
@@ -1583,7 +1583,9 @@ public void selectTab(@NonNull Session aTab) {
         if (!StringUtils.isEmpty(immersiveParentElementXPath)) {
             uriBuilder.appendQueryParameter(PARENT_ELEMENT_XPATH_PARAMETER, immersiveParentElementXPath);
         }
-        if (!StringUtils.isEmpty(immersiveTargetElementXPath)) {
+        if (!StringUtils.isEmpty(immersiveTargetElementXPath))
+        {
+            //uriBuilder.appendQueryParameter(TARGET_ELEMENT_XPATH_PARAMETER, immersiveTargetElementXPath);
             uriBuilder.appendQueryParameter(TARGET_ELEMENT_XPATH_PARAMETER, immersiveTargetElementXPath);
         }
         Uri extendedUri = uriBuilder.build();
