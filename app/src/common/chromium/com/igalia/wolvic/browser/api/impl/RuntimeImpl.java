@@ -196,7 +196,10 @@ public class RuntimeImpl implements WRuntime {
             CommandLine.getInstance().appendSwitchWithValue("disable-features", "Vulkan");
 
         // Enable WebXR Hand Input, which is disabled by default in blink (experimental)
-        CommandLine.getInstance().appendSwitchWithValue("enable-features", "WebXRHandInput");
+        //CommandLine.getInstance().appendSwitchWithValue("enable-features", "WebXRHandInput");
+        CommandLine.getInstance().appendSwitchWithValue("enable-features", "WebXR,WebXRHandInput,WebXRDOMOverlays");
+        //CommandLine.getInstance().appendSwitchWithValue("enable-blink-features", "WebXR");
+        CommandLine.getInstance().appendSwitchWithValue("remote-debugging-port", "9222");
 
         setupWebGLMSAA();
         DeviceUtils.addDeviceSpecificUserAgentSwitch();

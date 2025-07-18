@@ -111,86 +111,158 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
     }
 
     private class ReadyCallback implements RuntimeImpl.Callback {
+        private int mLoadCount = 0;
+        private boolean mInjected = false;
+
         @Override
         public void onReady() {
-            assert mTab == null;
-            mTab = new TabImpl(mRuntime.getContainerView().getContext(), SessionImpl.this, mWebContents);
+            mTab = new TabImpl(
+                    mRuntime.getContainerView().getContext(),
+                    SessionImpl.this,
+                    mWebContents
+            );
             final WebContents wc = mTab.getActiveWebContents();
             if (wc != null) {
-                new WebContentsObserver(wc)
-                {
+                new WebContentsObserver(wc) {
                     @Override
-                    public void didFinishLoadInPrimaryMainFrame(GlobalRenderFrameHostId rfhId, GURL gurl, boolean isKnownValid, int rfhLifecycleState)
-                    {
-                        // Parse out any XPath parameters from the original URI
-                        String loadedUrl = gurl.getSpec();
-                        String parentXPath = null;
-                        String targetXPath = null;
-                        if (loadedUrl != null)
-                        {
-                            Uri uri = Uri.parse(loadedUrl);
-                            targetXPath = uri.getQueryParameter(TARGET_ELEMENT_XPATH_PARAMETER);
-                        }
+                    public void didFinishLoadInPrimaryMainFrame(
+                            GlobalRenderFrameHostId rfhId,
+                            GURL gurl,
+                            boolean isKnownValid,
+                            int rfhLifecycleState
+                    ) {
+                        mLoadCount++;
 
-                        String launchTargetXPath = targetXPath;
+                        // Wait until the *second* primary‐frame load, then inject once
+                       // if (mLoadCount < 2 || mInjected) return;
+                        mInjected = true;
 
-                        // If the Intent supplied a target XPath, use it
-                        if (!TextUtils.isEmpty(launchTargetXPath))
-                        {
-                            launchTargetXPath = XPathUtils.ensureAttributesQuoted(launchTargetXPath);
-                            Log.d("DEBUG_PARAM", ">> URL = " + loadedUrl);
-                            Log.d("DEBUG_PARAM", ">> PARAM = " + launchTargetXPath);
+                        String js =
+                        "javascript:(function(){" +
+                        // One-time guard
+                        "if(window.__autoVrLog) return; window.__autoVrLog = true;" +
 
-                            String jsXPath =
-                                    "javascript:(function(){" +
-                                            "  function tryClick(){" +
-                                            "    var node = document.evaluate(" +
-                                            JSONObject.quote(launchTargetXPath) +
-                                            ", document, null," +
-                                            "XPathResult.FIRST_ORDERED_NODE_TYPE, null)" +
-                                            "      .singleNodeValue;" +
-                                            "    if (node && node.click){" +
-                                            "      node.click();" +
-                                            "      node.click();" +
-                                            "      return;" +
-                                            "    }" +
-                                            "    setTimeout(tryClick, 100);" +
-                                            "  }" +
+                        // Hijack requestSession early before MoonRider boots
+                        "navigator.__originalRequestSession = navigator.xr.requestSession;" +
+                        "navigator.xr.requestSession = function(type, opts){" +
+                        "  if(window.xrSession){" +
+                        "    const o = document.getElementById('vrLogger');" +
+                        "    if(o) o.textContent += '↪ MoonRider requested session — hijacked\\n';" +
+                        "    return Promise.resolve(window.xrSession);" +
+                        "  }" +
+                        "  return navigator.__originalRequestSession.call(navigator.xr, type, opts);" +
+                        "};" +
 
-                                            // Called after window.onload (if not already loaded)
-                                            "  function startClicking(){" +
-                                            "    setTimeout(tryClick, 1000);" +
-                                            "  }" +
+                        // Wait until DOM and canvas are ready
+                        "function startInjector(){" +
+                        "  var canvas = document.querySelector('canvas');" +
+                        "  if(!canvas){ setTimeout(startInjector, 100); return; }" +
 
-                                            // If page is already fully loaded, kick off; otherwise wait for load
-                                            "  if (document.readyState === 'complete'){" +
-                                            "    startClicking();" +
-                                            "  } else {" +
-                                            "    window.addEventListener('load', startClicking);" +
-                                            "  }" +
-                                            "})();";
+                        // Probe for immersive-VR entry button
+                        "  function tryClickVR(){" +
+                        "    var clickables = Array.from(document.querySelectorAll('button, div, a'));" +
+                        "    var found = false;" +
+                        "    clickables.forEach(function(el){" +
+                        "      var html = el.outerHTML.toLowerCase();" +
+                        "      var txt = el.textContent.trim().toLowerCase();" +
+                        "      var cls = (el.className || '').toLowerCase();" +
+                        "      var likely = txt.includes('vr') || html.includes('xr') || html.includes('enter') || cls.includes('vr') || cls.includes('enter');" +
+                        "      var visible = el.offsetWidth > 0 && el.offsetHeight > 0;" +
+                        "      if(likely && visible && typeof el.click === 'function'){" +
+                        "        el.click();" +
+                        "        found = true;" +
+                        "        const o = document.getElementById('vrLogger');" +
+                        "        if(o) o.textContent += 'Auto-clicked immersive entry: ' + (txt || cls) + '\\n';" +
+                        "      }" +
+                        "    });" +
+                        "    if(!found){" +
+                        "      setTimeout(tryClickVR, 300);" +
+                        "    }" +
+                        "  }" +
+                        "  tryClickVR();" +
 
-                            mTab.loadUrl("javascript:" + jsXPath);
-                            destroy();
-                            return;
-                        }
+
+                        // Create overlay
+                        "  var o = document.createElement('pre');" +
+                        "  o.id = 'vrLogger';" +
+                        "  o.style = 'position:fixed;top:0;left:0;width:100%;" +
+                        "max-height:40%;overflow:auto;background:rgba(0,0,0,0.8);" +
+                        "color:#0f0;font-family:monospace;font-size:16px;line-height:1.2;" +
+                        "z-index:2147483647;';" +
+                        "  document.body.appendChild(o);" +
+                        "  function L(){ o.textContent += Array.prototype.join.call(arguments,' ') + '\\n'; }" +
+
+                        // Start logs
+                        "  L('▶ JS injected');" +
+                        "  L('URL:', location.href);" +
+                        "  if(!navigator.xr){ L('navigator.xr missing'); return; }" +
+                        "  L('navigator.xr exists');" +
+
+                        // Check immersive-vr support
+                        "  navigator.xr.isSessionSupported('immersive-vr')" +
+                        "    .then(function(supported){" +
+                        "      L('immersive-vr supported?', supported);" +
+                        "      if(!supported){ L('No immersive-vr support'); return; }" +
+
+                        // Request session
+                        "      navigator.xr.requestSession('immersive-vr', {" +
+                        "        requiredFeatures: ['local-floor']," +
+                        "        optionalFeatures: ['bounded-floor']" +
+                        "      }).then(function(sess){" +
+                        "        L('Session started');" +
+
+                        // Add synthetic gesture
+                        "        try {" +
+                        "          var click = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });" +
+                        "          document.dispatchEvent(click);" +
+                        "          L('Synthetic gesture sent');" +
+                        "        } catch (e) { L('Gesture send failed:', e); }" +
+
+                        // Bind canvas and GL
+                        "        var gl = canvas.getContext('webgl') || canvas.getContext('webgl2');" +
+                        "        if(!gl){ L('No GL context found'); return; }" +
+                        "        gl.makeXRCompatible().then(function(){" +
+                        "          L('gl.makeXRCompatible done');" +
+                        "          sess.updateRenderState({ baseLayer: new XRWebGLLayer(sess, gl) });" +
+                        "          window.xrSession = sess;" +
+
+                        // Dummy frame loop
+                        "          sess.requestReferenceSpace('local-floor').then(function(refSpace){" +
+                        "            function unblockFrame(t, frame){" +
+                        "              const layer = sess.renderState.baseLayer;" +
+                        "              gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);" +
+                        "              gl.clearColor(0.02, 0.02, 0.02, 1);" +
+                        "              gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);" +
+                        "              sess.requestAnimationFrame(unblockFrame);" +
+                        "            }" +
+                        "            sess.requestAnimationFrame(unblockFrame);" +
+                        "            L('▶ dummy frame loop started');" +
+                        "          });" +
+                        "          L('XRWebGLLayer attached to WebXRApp canvas');" +
+                        "        });" +
+                        "      });" +
+                        "    })" +
+                        "    .catch(function(err){ L('requestSession error:', err.message || err); });" +
+                        "}" +
+
+                        // Run after DOM ready
+                        "if(document.readyState === 'complete'){" +
+                        "  startInjector();" +
+                        "} else {" +
+                        "  window.addEventListener('load', startInjector);" +
+                        "}" +
+                        "})()";
+                        mTab.loadUrl(js);
+                        wc.removeObserver(this);
                     }
                 };
             }
-            
-            if (mGetSessionFinderCallback != null) {
-                createSessionFinderIfNeeded();
-                mGetSessionFinderCallback.onFinderAvailable(mSessionFinder);
-                mGetSessionFinderCallback = null;
-            }
-            if (mInitialUri != null) {
-                assert mWebContents == null;
-                mTab.loadUrl(mInitialUri);
-                mInitialUri = null;
-            }
-            mWebContents = null;
+
+            // Kick off the very first navigation
+            mTab.loadUrl(mInitialUri);
         }
     }
+
 
     public SessionImpl(@Nullable WSessionSettings settings) {
         mSettings = settings != null ? (SettingsImpl) settings : new SettingsImpl(false);

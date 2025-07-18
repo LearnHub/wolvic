@@ -1413,7 +1413,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
         if (mLaunchImmersive) {
             Log.d(LOGTAG, "Launched in immersive mode: exiting WebXR will finish the app");
-            finish();
+            //finish();
         }
 
         runOnUiThread(() -> {
