@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">WolvicLauncher</string>
+    <string name="launching">Launching Wolvic…</string>
+    <string name="wolvic_not_found">Wolvic app not installed.</string>
+</resources>
