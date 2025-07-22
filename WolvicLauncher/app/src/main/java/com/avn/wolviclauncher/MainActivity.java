@@ -1,4 +1,4 @@
-package com.avn.wolviclauncher_XrDino;
+package com.avn.wolviclauncher_FullUi;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,12 +16,13 @@ public class MainActivity extends AppCompatActivity {
     private static final String TARGET_ACTIVITY = "com.igalia.wolvic.VRBrowserActivity";
 
     //private static final String TARGET_URL = "https://aframe.io/a-painter/";
+	//private static final String IMMERSIVE_XPATH = "//button[contains(@class,\"a-enter-vr-button\")]";
+    
     //private static final String TARGET_URL = "https://moonrider.xyz/";
-    private static final String TARGET_URL = "https://xrdinosaurs.com/";
-
-    //private static final String IMMERSIVE_XPATH = "//button[contains(@class,\"a-enter-vr-button\")]";
     //private static final String IMMERSIVE_XPATH = "//div[@id=\"vrButton\"]";
-    private static final String IMMERSIVE_XPATH = "//li[@id=\"viewVRButton\"]";
+    
+    //private static final String TARGET_URL = "https://xrdinosaurs.com/";
+    //private static final String IMMERSIVE_XPATH = "//li[@id=\"viewVRButton\"]";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -36,8 +37,9 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             intent.setClassName(TARGET_PACKAGE, TARGET_ACTIVITY);
-            intent.setData(Uri.parse(TARGET_URL));
-            intent.putExtra("launch_immersive_element_xpath", IMMERSIVE_XPATH);
+            //intent.setData(Uri.parse(TARGET_URL));
+            //intent.putExtra("launch_immersive_element_xpath", IMMERSIVE_XPATH);
+            intent.putExtra("launch_full_ui", true);
 
         try {
             startActivity(intent);

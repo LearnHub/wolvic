@@ -156,13 +156,13 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
 
                                             "  function startClicking(){" +
                                             "    setTimeout(function(){" +
-                                            "      setTimeout(tryClick, 500);" + // We need to wait for some pages to finish the WebGL Init, like XrDinosaurs.
+                                            "      setTimeout(tryClick, 1000);" + // We need to wait for some pages to finish the WebGL Init, like XrDinosaurs.
                                             "    }, 100); " +
                                             "  }" +
 
                                             // Wait for the page to full load before trying to enter Auto-VR
                                             "  if (document.readyState === 'complete'){" +
-                                            "    setTimeout(startClicking, 500);" +
+                                            "    setTimeout(startClicking, 1000);" +
                                             "  } else {" +
                                             "    window.addEventListener('load', startClicking);" +
                                             "  }" +

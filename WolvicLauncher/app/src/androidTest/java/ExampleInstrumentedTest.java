@@ -1,4 +1,4 @@
-package com.avn.wolviclauncher_XrDino;
+package com.avn.wolviclauncher_FullUi;
 
 import static org.junit.Assert.*;
 import android.content.Context;
@@ -12,6 +12,6 @@ public class ExampleInstrumentedTest {
     @Test
     public void useAppContext() {
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        assertEquals("com.avn.wolviclauncher_XrDino", appContext.getPackageName());
+        assertEquals("com.avn.wolviclauncher_FullUi", appContext.getPackageName());
     }
 }

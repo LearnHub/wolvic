@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.avn.wolviclauncher_XrDino'
+    namespace 'com.avn.wolviclauncher_FullUi'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.avn.wolviclauncher_XrDino"
+        applicationId "com.avn.wolviclauncher_FullUi"
         minSdk 24
         targetSdk 34
         versionCode 1
