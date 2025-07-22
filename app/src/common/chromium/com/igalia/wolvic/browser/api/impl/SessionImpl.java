@@ -144,27 +144,25 @@ public class SessionImpl implements WSession, DownloadManagerBridge.Delegate {
                             String jsXPath =
                                     "javascript:(function(){" +
                                             "  function tryClick(){" +
-                                            "    var node = document.evaluate(" +
-                                            JSONObject.quote(launchTargetXPath) +
-                                            ", document, null," +
-                                            "XPathResult.FIRST_ORDERED_NODE_TYPE, null)" +
-                                            "      .singleNodeValue;" +
+                                            "  var node = document.evaluate(" + JSONObject.quote(launchTargetXPath) +
+                                            ", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;" +
                                             "    if (node && node.click){" +
                                             "      node.click();" +
-                                            "      node.click();" +
+                                            "      node.click();" + // Not sure if I need to double click
                                             "      return;" +
                                             "    }" +
                                             "    setTimeout(tryClick, 100);" +
                                             "  }" +
 
-                                            // Called after window.onload (if not already loaded)
                                             "  function startClicking(){" +
-                                            "    setTimeout(tryClick, 1000);" +
+                                            "    setTimeout(function(){" +
+                                            "      setTimeout(tryClick, 500);" + // We need to wait for some pages to finish the WebGL Init, like XrDinosaurs.
+                                            "    }, 100); " +
                                             "  }" +
 
-                                            // If page is already fully loaded, kick off; otherwise wait for load
+                                            // Wait for the page to full load before trying to enter Auto-VR
                                             "  if (document.readyState === 'complete'){" +
-                                            "    startClicking();" +
+                                            "    setTimeout(startClicking, 500);" +
                                             "  } else {" +
                                             "    window.addEventListener('load', startClicking);" +
                                             "  }" +
