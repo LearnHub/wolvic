@@ -973,6 +973,11 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                 mImmersiveParentElementXPath = extras.getString(EXTRA_LAUNCH_IMMERSIVE_PARENT_XPATH);
                 mImmersiveTargetElementXPath = extras.getString(EXTRA_LAUNCH_IMMERSIVE_ELEMENT_XPATH);
 
+                if (!mImmersiveTargetElementXPath.isEmpty()) {
+                    mHideWebXRIntersitial = true;
+                    setWebXRIntersitialState(WEBXR_INTERSTITIAL_HIDDEN);
+                }
+
                 // Open in immersive requires specific information to be present
                 //mLaunchImmersive = targetUri != null && mImmersiveTargetElementXPath != null;
             //}
