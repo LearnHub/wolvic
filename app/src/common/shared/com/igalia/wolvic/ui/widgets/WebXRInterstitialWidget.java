@@ -137,9 +137,9 @@ public class WebXRInterstitialWidget extends UIWidget implements WidgetManagerDe
             addController(DeviceType.PfdmYVR2, WebXRInterstitialController.HAND_LEFT);
             addController(DeviceType.PfdmYVR2, WebXRInterstitialController.HAND_RIGHT);
         }
-        else if (deviceType == DeviceType.SkyworthAVN) {
-            addController(DeviceType.SkyworthAVN, WebXRInterstitialController.HAND_LEFT);
-            addController(DeviceType.SkyworthAVN, WebXRInterstitialController.HAND_RIGHT);
+        else if (deviceType == DeviceType.AvantisCVR655) {
+            addController(DeviceType.AvantisCVR655, WebXRInterstitialController.HAND_LEFT);
+            addController(DeviceType.AvantisCVR655, WebXRInterstitialController.HAND_RIGHT);
         }
         for (UIWidget controller: mControllers) {
             controller.getPlacement().parentHandle = getHandle();

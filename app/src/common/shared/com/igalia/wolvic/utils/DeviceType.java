@@ -11,7 +11,7 @@ import com.igalia.wolvic.BuildConfig;
 
 public class DeviceType {
     // These values need to match those in Device.h
-    @IntDef(value = {Unknown, OculusGo, OculusQuest, ViveFocus, ViveFocusPlus, PicoNeo2, PicoG2, PicoNeo3, OculusQuest2, HVR3DoF, HVR6DoF, Pico4x, MetaQuestPro, LynxR1, LenovoA3, LenovoVRX, MagicLeap2, MetaQuest3, VisionGlass, Pico4U, SkyworthAVN, PfdmYVR1, PfdmYVR2, PfdmMR})
+    @IntDef(value = {Unknown, OculusGo, OculusQuest, ViveFocus, ViveFocusPlus, PicoNeo2, PicoG2, PicoNeo3, OculusQuest2, HVR3DoF, HVR6DoF, Pico4x, MetaQuestPro, LynxR1, LenovoA3, LenovoVRX, MagicLeap2, MetaQuest3, VisionGlass, Pico4U, AvantisCVR655, PfdmYVR1, PfdmYVR2, PfdmMR})
     public @interface Type {}
     public static final int Unknown = 0;
     public static final int OculusGo = 1;
@@ -33,7 +33,7 @@ public class DeviceType {
     public static final int MetaQuest3 = 18;
     public static final int VisionGlass = 19;
     public static final int Pico4U = 20;
-  public static final int SkyworthAVN = 21;
+  public static final int AvantisCVR655 = 21;
     public static final int PfdmYVR1 = 22;
     public static final int PfdmYVR2 = 23;
     public static final int PfdmMR = 24;
@@ -91,8 +91,8 @@ public class DeviceType {
             case MetaQuest3:
                 mDeviceName = "Meta Quest 3";
                 break;
-            case SkyworthAVN:
-                mDeviceName = "Skyworth XR2 AVN";
+            case AvantisCVR655:
+                mDeviceName = "Avantis CVR655";
                 break;
             case PfdmYVR1:
                 mDeviceName = "PFDM YVR1";

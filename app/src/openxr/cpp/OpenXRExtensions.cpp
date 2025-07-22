@@ -61,7 +61,7 @@ void OpenXRExtensions::Initialize() {
     // Adding this check here is ugly but required to have a working build for VRX. With the current
     // runtime the controller poses freeze (always report same pose) if hand tracking is enabled.
     if (DeviceUtils::GetDeviceTypeFromSystem() == device::LenovoVRX ||
-        DeviceUtils::GetDeviceTypeFromSystem() == device::SkyworthAVN)
+        DeviceUtils::GetDeviceTypeFromSystem() == device::AvantisCVR655)
         sSupportedExtensions.erase(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
 
     // API layers.

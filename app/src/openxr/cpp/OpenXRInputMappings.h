@@ -461,11 +461,11 @@ namespace crow {
             },
     };
 
-    const OpenXRInputMapping SkyworthAVN {
+    const OpenXRInputMapping AvantisCVR655 {
             "/interaction_profiles/oculus/touch_controller",
             "CVR655_left.obj",
             "CVR655_right.obj",
-            device::SkyworthAVN,
+            device::AvantisCVR655,
             std::vector<OpenXRInputProfile> { "oculus-touch-v3", "oculus-touch-v2", "oculus-touch", "generic-trigger-squeeze-thumbstick" },
             std::vector<OpenXRButton> {
                     { OpenXRButtonType::Trigger, kPathTrigger, OpenXRButtonFlags::ValueTouch, OpenXRHandFlags::Both },
@@ -551,7 +551,7 @@ namespace crow {
     };
 
     const std::array<OpenXRInputMapping, 18> OpenXRInputMappings {
-            OculusTouch, OculusTouch2, MetaQuestTouchPro, Pico4U, Pico4x, PicoNeo3, PfdmYVR1, PfdmYVR2, PfdmMR, Hvr6DOF, Hvr3DOF, LenovoVRX, MagicLeap2, MetaTouchPlus, SkyworthAVN, HandInteraction, MSFTHandInteraction, KHRSimple
+            OculusTouch, OculusTouch2, MetaQuestTouchPro, Pico4U, Pico4x, PicoNeo3, PfdmYVR1, PfdmYVR2, PfdmMR, Hvr6DOF, Hvr3DOF, LenovoVRX, MagicLeap2, MetaTouchPlus, AvantisCVR655, HandInteraction, MSFTHandInteraction, KHRSimple
     };
 
 } // namespace crow

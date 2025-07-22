@@ -22,7 +22,7 @@
 
         <!-- Left Controller -->
         <RelativeLayout
-            app:visibleGone="@{model == DeviceType.SkyworthAVN &amp;&amp; hand == WebXRInterstitialController.HAND_LEFT}"
+            app:visibleGone="@{model == DeviceType.AvantisCVR655 &amp;&amp; hand == WebXRInterstitialController.HAND_LEFT}"
             tools:visibility="gone"
             android:layout_width="200dp"
             android:layout_height="130dp"
@@ -63,7 +63,7 @@
 
         <!-- Right Controller -->
         <RelativeLayout
-            app:visibleGone="@{model == DeviceType.SkyworthAVN &amp;&amp; hand == WebXRInterstitialController.HAND_RIGHT}"
+            app:visibleGone="@{model == DeviceType.AvantisCVR655 &amp;&amp; hand == WebXRInterstitialController.HAND_RIGHT}"
             tools:visibility="gone"
             android:layout_width="200dp"
             android:layout_height="130dp"
