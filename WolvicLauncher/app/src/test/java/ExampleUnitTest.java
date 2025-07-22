@@ -1,4 +1,4 @@
-package com.avn.wolviclauncher;
+package com.avn.wolviclauncher_XrDino;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
