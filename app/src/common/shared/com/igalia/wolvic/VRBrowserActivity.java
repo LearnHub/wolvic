@@ -6,6 +6,7 @@
 package com.igalia.wolvic;
 
 import static com.igalia.wolvic.ui.widgets.UIWidget.REMOVE_WIDGET;
+import static com.igalia.wolvic.ui.widgets.Windows.TARGET_ELEMENT_XPATH_PARAMETER;
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentCallbacks2;
@@ -917,6 +918,34 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
             if (targetUri == null)
                 targetUri = Uri.parse("https://classvr.com");
+            else
+            {
+                String loadedUrl = targetUri.toString();
+                Uri uri = Uri.parse(loadedUrl);
+                String variable = uri.getQueryParameter(TARGET_ELEMENT_XPATH_PARAMETER);
+
+                if (variable != null && !variable.isEmpty()) {
+                    mImmersiveTargetElementXPath = variable;
+                    mHideWebXRIntersitial = true;
+                    setWebXRIntersitialState(WEBXR_INTERSTITIAL_HIDDEN);
+                }
+
+                variable = uri.getQueryParameter(EXTRA_LAUNCH_FULL_UI);
+                if (variable != null && !variable.isEmpty()) {
+                    if (variable.equals("true"))
+                        mLaunchImmersive = false;
+                }
+
+                variable = uri.getQueryParameter(EXTRA_POSE_OVERRIDE);
+                if (variable != null && !variable.isEmpty()) {
+                    if (variable.equals("true"))
+                        mPoseOverride = true;
+                }
+
+                // Clear all Params
+                Uri.Builder builder = uri.buildUpon().clearQuery();
+                targetUri = builder.build();
+            }
         }
 
         if (extras != null) {
@@ -991,11 +1020,13 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
             // By default we always launch in Immersive/Kiosk Mode.
             // As such this will allow to launch the app with full UI mode if required.
-            mLaunchImmersive = !getIntent().getBooleanExtra(EXTRA_LAUNCH_FULL_UI, false);
+            mLaunchImmersive = mLaunchImmersive & !getIntent().getBooleanExtra(EXTRA_LAUNCH_FULL_UI, false);
 
             // Do we have an override for the pose?
-            mPoseOverride = isDomainWithOverride(targetUri);
-            mPoseOverride |= getIntent().getBooleanExtra(EXTRA_POSE_OVERRIDE, false);
+            if (isDomainWithOverride(targetUri))
+                mPoseOverride = true;
+
+            mPoseOverride |=  mPoseOverride & getIntent().getBooleanExtra(EXTRA_POSE_OVERRIDE, false);
             queueRunnable(() -> setPoseOverrideNative(mPoseOverride));
 
             if (openInKioskMode) {
