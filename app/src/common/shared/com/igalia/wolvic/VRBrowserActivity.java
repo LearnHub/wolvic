@@ -138,7 +138,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     public static final String EXTRA_KIOSK = "kiosk";
     private static final long BATTERY_UPDATE_INTERVAL = 60 * 1_000_000_000L; // 60 seconds
 
-    private boolean mLaunchImmersive = true;
+    private boolean mLaunchImmersive = true; // This is tight with Kiosk Mode & Auto-XR.
+    private boolean mAutoXR = false;         // We use it to detect if AutoXR is enabled/requested since we want to let the user exit back in regular usecases.
     public static final String EXTRA_LAUNCH_FULL_UI = "launch_full_ui";
     public static final String EXTRA_LAUNCH_IMMERSIVE = "launch_immersive";
     // Element where a click would be simulated to launch the WebXR experience.
@@ -152,7 +153,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     private static final List<String> HOSTS_WITH_OVERRIDE = Arrays.asList(
             "moonrider.xyz",
-            "aframe.io/a-painter"
+            "aframe.io/a-painter",
+            "immerseme.co"
     );
 
     public static boolean isDomainWithOverride(Uri uri) {
@@ -928,6 +930,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                     mImmersiveTargetElementXPath = variable;
                     mHideWebXRIntersitial = true;
                     setWebXRIntersitialState(WEBXR_INTERSTITIAL_HIDDEN);
+                    mAutoXR = true;
                 }
 
                 variable = uri.getQueryParameter(EXTRA_LAUNCH_FULL_UI);
@@ -1447,8 +1450,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         mIsPresentingImmersive.postValue(false);
         TelemetryService.stopImmersive();
 
-        if (mLaunchImmersive) {
-            Log.d(LOGTAG, "Launched in immersive mode: exiting WebXR will finish the app");
+        if (mLaunchImmersive && mAutoXR) {
+            Log.d(LOGTAG, "Launched in AutoXR mode: exiting WebXR will finish the app");
             finish();
         }
 
