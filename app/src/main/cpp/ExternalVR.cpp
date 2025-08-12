@@ -225,6 +225,7 @@ mozilla::gfx::VRControllerType GetVRControllerTypeByDevice(device::DeviceType aT
       result = mozilla::gfx::VRControllerType::OculusGo;
       break;
     case device::OculusQuest:
+      case device::AvantisCVR655:
       result = mozilla::gfx::VRControllerType::OculusTouch2;
       break;
     case device::OculusQuest2:
@@ -244,7 +245,6 @@ mozilla::gfx::VRControllerType GetVRControllerTypeByDevice(device::DeviceType aT
       result = mozilla::gfx::VRControllerType::HTCViveFocus;
       break;
     // FIXME: Gecko does not support VRX. Controllers look similar to ViveFocusPlus
-    case device::AvantisCVR655:
     case device::LenovoVRX:
     case device::ViveFocusPlus:
       result = mozilla::gfx::VRControllerType::HTCViveFocusPlus;

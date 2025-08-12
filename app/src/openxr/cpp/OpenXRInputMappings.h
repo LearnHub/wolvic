@@ -33,6 +33,7 @@ namespace crow {
     constexpr const char* kPathTrackpad { "input/trackpad" };
     constexpr const char* kPathSelect { "input/select" };
     constexpr const char* kPathMenu { "input/menu" };
+    constexpr const char* kPatSystem { "input/system" };
     constexpr const char* kPathBack { "input/back" };
     constexpr const char* kPathHaptic { "output/haptic" };
     constexpr const char* kPathButtonA { "input/a" };
@@ -476,7 +477,8 @@ namespace crow {
                     { OpenXRButtonType::ButtonA, kPathButtonA, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
                     { OpenXRButtonType::ButtonB, kPathButtonB, OpenXRButtonFlags::ClickTouch, OpenXRHandFlags::Right },
                     { OpenXRButtonType::Thumbrest, kPathThumbrest, OpenXRButtonFlags::Touch, OpenXRHandFlags::Both },
-                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true }
+                    { OpenXRButtonType::Menu, kPathMenu, OpenXRButtonFlags::Click, OpenXRHandFlags::Left, ControllerDelegate::Button::BUTTON_APP, true },
+                    { OpenXRButtonType::Menu, kPatSystem, OpenXRButtonFlags::Click, OpenXRHandFlags::Right, ControllerDelegate::Button::BUTTON_APP, true },
             },
             std::vector<OpenXRAxis> {
                     { OpenXRAxisType::Thumbstick, kPathThumbstick,  OpenXRHandFlags::Both },
