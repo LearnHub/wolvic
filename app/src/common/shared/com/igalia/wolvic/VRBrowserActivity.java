@@ -897,6 +897,8 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         Uri targetUri = null;
         Bundle extras;
 
+        Log.d("DEBUG", "Parsing custom URI from intent: " + dataUri);
+
         if (dataUri != null && dataUri.getScheme().equals(CUSTOM_URI_SCHEME) && dataUri.getHost().equals(CUSTOM_URI_HOST)) {
             Log.d(LOGTAG, "Parsing custom URI from intent: " + dataUri);
 
@@ -945,8 +947,15 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
                         mPoseOverride = true;
                 }
 
-                // Clear all Params
+                // Rebuild URI without Wolvic-only params, preserving all others
                 Uri.Builder builder = uri.buildUpon().clearQuery();
+                for (String param : uri.getQueryParameterNames()) {
+                    if (!TARGET_ELEMENT_XPATH_PARAMETER.equals(param)
+                            && !EXTRA_LAUNCH_FULL_UI.equals(param)
+                            && !EXTRA_POSE_OVERRIDE.equals(param)) {
+                        builder.appendQueryParameter(param, uri.getQueryParameter(param));
+                    }
+                }
                 targetUri = builder.build();
             }
         }
