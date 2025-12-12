@@ -699,24 +699,12 @@ ExternalVR::SetHapticState(ControllerContainerPtr aControllerContainer) const {
 
 void
 ExternalVR::OnPause() {
-  if (m.system.displayState.presentingGeneration == 0) {
-    // Do not call PushSystemState() until correctly initialized.
-    // Fixes WebXR Display not found error due to some superfluous pause/resume life cycle events.
-    return;
-  }
-  m.system.displayState.isConnected = false;
-  PushSystemState();
+    m.system.displayState.isConnected = false;
 }
 
 void
 ExternalVR::OnResume() {
-  if (m.system.displayState.presentingGeneration == 0) {
-    // Do not call PushSystemState() until correctly initialized.
-    // Fixes WebXR Display not found error due to some superfluous pause/resume life cycle events.
-    return;
-  }
-  m.system.displayState.isConnected = true;
-  PushSystemState();
+    m.system.displayState.isConnected = true;
 }
 
 void

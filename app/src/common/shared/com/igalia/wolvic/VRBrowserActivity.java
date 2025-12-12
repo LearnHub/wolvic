@@ -692,9 +692,9 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     protected void onPause() {
-        if (mIsPresentingImmersive.getValue()) {
-            // This needs to be sync to ensure that WebVR is correctly paused.
-            // Also prevents a deadlock in onDestroy when the BrowserWidget is released.
+        
+        if (mIsPresentingImmersive != null && Boolean.TRUE.equals(mIsPresentingImmersive.getValue())) {
+            Log.d(LOGTAG, "Exiting immersive mode synchronously due to pause");
             exitImmersiveSync();
         }
 
