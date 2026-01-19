@@ -130,6 +130,8 @@ struct DeviceDelegateOpenXR::State {
   bool isEyeTrackingSupported { false };
   bool handTrackingEnabled { true };
   bool shouldUsePassthrough { false };
+  bool appPaused { false };
+  bool vrReadyBeforePause { false };
 
   bool IsPositionTrackingSupported() {
       CHECK(system != XR_NULL_SYSTEM_ID);
@@ -687,20 +689,37 @@ struct DeviceDelegateOpenXR::State {
         BeginXRSession();
         break;
       }
+      case XR_SESSION_STATE_SYNCHRONIZED: {
+        VRB_LOG("XR_SESSION_STATE_SYNCHRONIZED");
+        if (!vrReady) {
+            VRB_LOG("XR_SESSION_STATE_SYNCHRONIZED: Restoring vrReady");
+            vrReady = true;
+        }
+        break;
+      }
       case XR_SESSION_STATE_VISIBLE: {
         VRB_LOG("XR_SESSION_STATE_VISIBLE");
-        if (previousSessionState == XR_SESSION_STATE_FOCUSED)
+        if (previousSessionState == XR_SESSION_STATE_FOCUSED) {
             VRBrowser::OnAppFocusChanged(false);
+        }
+        // Ensure vrReady is true when transitioning to VISIBLE state
+        if (!vrReady) {
+            VRB_LOG("XR_SESSION_STATE_VISIBLE: Restoring vrReady");
+            vrReady = true;
+        }
         break;
       }
       case XR_SESSION_STATE_FOCUSED: {
         VRB_LOG("XR_SESSION_STATE_FOCUSED");
-        CHECK(previousSessionState == XR_SESSION_STATE_VISIBLE);
-          VRBrowser::OnAppFocusChanged(true);
-        break;
-      }
-      case XR_SESSION_STATE_SYNCHRONIZED: {
-        VRB_LOG("XR_SESSION_STATE_SYNCHRONIZED");
+        if (previousSessionState == XR_SESSION_STATE_VISIBLE)
+        {
+            VRBrowser::OnAppFocusChanged(true);
+        }
+        if (!vrReady)
+        {
+            VRB_LOG("XR_SESSION_STATE_FOCUSED: Restoring vrReady");
+            vrReady = true;
+        }
         break;
       }
       case XR_SESSION_STATE_STOPPING: {
@@ -1791,6 +1810,53 @@ DeviceDelegateOpenXR::UpdatePassthrough() {
     OpenXRExtensions::sXrPassthroughLayerResumeFB(m.passthroughLayer->GetPassthroughLayerHandle());
   else
     OpenXRExtensions::sXrPassthroughLayerPauseFB(m.passthroughLayer->GetPassthroughLayerHandle());
+}
+
+void
+DeviceDelegateOpenXR::Pause() {
+  VRB_LOG("DeviceDelegateOpenXR::Pause - vrReady=%d sessionState=%d", m.vrReady, (int)m.sessionState);
+  m.appPaused = true;
+  m.vrReadyBeforePause = m.vrReady;
+  // The OpenXR runtime will transition the session state automatically when the app goes
+  // to the background. We don't need to call xrEndSession here - the runtime handles session lifecycle.
+}
+
+void
+DeviceDelegateOpenXR::Resume() {
+  VRB_LOG("DeviceDelegateOpenXR::Resume - vrReady=%d sessionState=%d vrReadyBeforePause=%d",
+          m.vrReady, (int)m.sessionState, m.vrReadyBeforePause);
+  m.appPaused = false;
+
+  if (m.session == XR_NULL_HANDLE) {
+    VRB_LOG("DeviceDelegateOpenXR::Resume - No active session");
+    return;
+  }
+
+  ProcessEvents();
+
+  // If the session is in READY state but vrReady is false (after wake-up) restart the XR session rendering.
+  if (m.sessionState == XR_SESSION_STATE_READY && !m.vrReady) {
+    VRB_LOG("DeviceDelegateOpenXR::Resume - Session in READY state, calling BeginXRSession");
+    m.BeginXRSession();
+  } else if ((m.sessionState == XR_SESSION_STATE_VISIBLE ||
+              m.sessionState == XR_SESSION_STATE_FOCUSED ||
+              m.sessionState == XR_SESSION_STATE_SYNCHRONIZED) && !m.vrReady) {
+    VRB_LOG("DeviceDelegateOpenXR::Resume - Session active (state=%d) but vrReady=false, restoring vrReady",
+            (int)m.sessionState);
+    m.vrReady = true;
+  }
+
+  // If we were in VR mode before pause and vrReady is still false, try to recover.
+  if (m.vrReadyBeforePause && !m.vrReady) {
+    // Poll for more events as the session state change can be delayed.
+    ProcessEvents();
+    if (!m.vrReady && m.sessionState == XR_SESSION_STATE_READY) {
+      // If still not ready, start Session as we are in the initial boot-up sequence.
+      m.BeginXRSession();
+    }
+  }
+
+  m.vrReadyBeforePause = false;
 }
 
 } // namespace crow

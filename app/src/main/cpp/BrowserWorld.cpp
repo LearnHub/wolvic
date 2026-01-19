@@ -961,6 +961,9 @@ BrowserWorld::Pause() {
   ASSERT_ON_RENDER_THREAD();
   m.paused = true;
   m.externalVR->OnPause();
+  if (m.device) {
+    m.device->Pause();
+  }
   m.monitor->Pause();
 }
 
@@ -969,6 +972,9 @@ BrowserWorld::Resume() {
   ASSERT_ON_RENDER_THREAD();
   m.paused = false;
   m.externalVR->OnResume();
+  if (m.device) {
+    m.device->Resume();
+  }
   m.monitor->Resume();
 }
 

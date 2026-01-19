@@ -69,6 +69,7 @@ public:
   void SetSourceBrowser(VRBrowserType aBrowser);
   void OnPause();
   void OnResume();
+  bool IsPaused() const;
   uint64_t GetFrameId() const;
   device::BlendMode GetImmersiveBlendMode() const;
   DeviceDelegate::ImmersiveXRSessionType GetImmersiveXRSessionType() const;

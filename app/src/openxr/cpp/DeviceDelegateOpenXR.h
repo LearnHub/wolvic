@@ -81,6 +81,8 @@ public:
   bool ShouldExitRenderLoop() const;
   void SetImmersiveBlendMode(device::BlendMode) override;
   float GetSelectThreshold(int32_t controllerIndex) override;
+  void Pause() override;
+  void Resume() override;
 
 protected:
   struct State;

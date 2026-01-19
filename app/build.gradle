@@ -102,7 +102,7 @@ def isWebKitAvailable = {
 
 // Version names for Gecko and Chromium releases.
 def GECKO_RELEASE_VERSION_NAME = '1.8.1'
-def CHROMIUM_RELEASE_VERSION_NAME = '1.2.3'
+def CHROMIUM_RELEASE_VERSION_NAME = '1.2.5'
 
 android {
     namespace 'com.igalia.wolvic'

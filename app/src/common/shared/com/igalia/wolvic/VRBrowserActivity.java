@@ -692,12 +692,9 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
 
     @Override
     protected void onPause() {
-        
-        if (mIsPresentingImmersive != null && Boolean.TRUE.equals(mIsPresentingImmersive.getValue())) {
-            Log.d(LOGTAG, "Exiting immersive mode synchronously due to pause");
-            exitImmersiveSync();
-        }
-
+        // Don't exit immersive mode on pause !!!
+        // Instead, the native layer will pause the WebXR session (using suppressFrames), allowing it to resume where it left off after wake-up, including pose orientation !!!
+		// This provides a better user experience for immersive apps.
         mAudioEngine.pauseEngine();
         mFragmentController.dispatchPause();
 

@@ -6,6 +6,7 @@
 #include "ExternalVR.h"
 #include "VRBrowser.h"
 
+#include "vrb/Logger.h"
 #include "vrb/Matrix.h"
 #include "vrb/Quaternion.h"
 #include "vrb/Vector.h"
@@ -138,6 +139,7 @@ struct ExternalVR::State {
   bool firstPresentingFrame = false;
   bool compositorEnabled = true;
   bool waitingForExit = false;
+  bool paused = false;
 
   State() {
     pthread_mutex_init(&data.systemMutex, nullptr);
@@ -699,12 +701,38 @@ ExternalVR::SetHapticState(ControllerContainerPtr aControllerContainer) const {
 
 void
 ExternalVR::OnPause() {
-    m.system.displayState.isConnected = false;
+    m.paused = true;
+    // Don't modify display state - keep the session alive.
+    // The OpenXR runtime handles session state transitions.
 }
 
 void
 ExternalVR::OnResume() {
-    m.system.displayState.isConnected = true;
+    // If we were waiting for exit but got paused/resumed, clear the exit state
+    if (m.waitingForExit) {
+        VRB_LOG("ExternalVR::OnResume");
+        m.waitingForExit = false;
+    }
+
+    // Reset frame sync if we were presenting during pause. This is critical to avoid frame wait timeouts after resume!
+    if (m.paused && IsPresenting()) {
+        // Sync our frame ID with the browser current frame ID in order to avoid blocking in WaitFrameResult()
+        uint64_t browserFrameId = m.browser.layerState[0].layer_stereo_immersive.frameId;
+        if (browserFrameId > 0)
+        {
+            m.lastFrameId = browserFrameId;
+            m.system.displayState.lastSubmittedFrameId = browserFrameId;
+            m.firstPresentingFrame = true;
+            PushSystemState();
+        }
+    }
+
+    m.paused = false;
+}
+
+bool
+ExternalVR::IsPaused() const {
+    return m.paused;
 }
 
 void
