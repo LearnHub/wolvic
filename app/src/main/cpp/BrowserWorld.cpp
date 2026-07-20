@@ -194,6 +194,7 @@ struct BrowserWorld::State {
   ExternalBlitterPtr blitter;
   bool windowsInitialized;
   SkyboxPtr skybox;
+  int32_t versionLabelHandle = 0;
   FadeAnimationPtr fadeAnimation;
   uint32_t loaderDelay;
   bool exitImmersiveRequested;
@@ -1464,6 +1465,9 @@ BrowserWorld::AddWidget(int32_t aHandle, const WidgetPlacementPtr& aPlacement) {
   }
 
   m.widgets.push_back(widget);
+  if (aPlacement->name == "version_label") {
+    m.versionLabelHandle = aHandle;
+  }
   UpdateWidget(widget->GetHandle(), aPlacement);
 }
 
@@ -1861,6 +1865,30 @@ BrowserWorld::TickWorld() {
   const vrb::Vector headPosition = m.device->GetHeadTransform().GetTranslation();
   if (m.skybox) {
     m.skybox->SetTransform(vrb::Matrix::Translation(headPosition));
+  }
+
+  // Keep the build-version label lying flat on the floor beneath the viewer, so it only comes
+  // into view when the user looks straight down. Follows head position (and horizontal facing);
+  // it is not pitch-gated, it is simply below you.
+  if (m.versionLabelHandle) {
+    if (WidgetPtr label = m.GetWidget(m.versionLabelHandle)) {
+      vrb::Vector forward = m.device->GetHeadTransform().MultiplyDirection(vrb::Vector(0.0f, 0.0f, -1.0f));
+      vrb::Vector forwardXZ(forward.x(), 0.0f, forward.z());
+      if (forwardXZ.Magnitude() < 0.0001f) {
+        forwardXZ = vrb::Vector(0.0f, 0.0f, -1.0f); // looking straight up/down: fall back to world forward
+      }
+      forwardXZ = forwardXZ.Normalize();
+      const float kMetersBelow = 1.3f;   // below the eyes
+      const float kMetersForward = 0.4f; // ahead along the horizontal gaze, so it sits comfortably in view
+      vrb::Vector position = headPosition + forwardXZ * kMetersForward - vrb::Vector(0.0f, kMetersBelow, 0.0f);
+      // Lay the quad flat facing up (+Y), with the top of the text pointing along the horizontal gaze.
+      vrb::Matrix orientation = vrb::Matrix::Rotation(vrb::Vector(0.0f, 1.0f, 0.0f), forwardXZ);
+      vrb::Matrix worldTarget = vrb::Matrix::Translation(position).PostMultiply(orientation);
+      // The label lives under rootTransparent (transform = reorient * widgetsYaw); undo that so the
+      // transform above is applied in world space, matching how the skybox head-follows.
+      vrb::Matrix parentTransform = m.device->GetReorientTransform().PostMultiply(m.widgetsYaw);
+      label->SetTransform(parentTransform.Inverse().PostMultiply(worldTarget));
+    }
   }
 
   m.SortWidgets();

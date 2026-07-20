@@ -83,6 +83,7 @@ import com.igalia.wolvic.ui.widgets.RootWidget;
 import com.igalia.wolvic.ui.widgets.TrayWidget;
 import com.igalia.wolvic.ui.widgets.UISurfaceTextureRenderer;
 import com.igalia.wolvic.ui.widgets.UIWidget;
+import com.igalia.wolvic.ui.widgets.VersionLabelWidget;
 import com.igalia.wolvic.ui.widgets.VerticalTabsBar;
 import com.igalia.wolvic.ui.widgets.WebXRInterstitialWidget;
 import com.igalia.wolvic.ui.widgets.Widget;
@@ -267,6 +268,7 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     Runnable mAudioUpdateRunnable;
     Windows mWindows;
     RootWidget mRootWidget;
+    VersionLabelWidget mVersionLabel;
     KeyboardWidget mKeyboard;
     NavigationBarWidget mNavigationBar;
     AbstractTabsBar mTabsBar;
@@ -541,6 +543,11 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
         attachToWindow(mWindows.getFocusedWindow(), null);
 
         addWidgets(Arrays.asList(mRootWidget, mNavigationBar, mKeyboard, mTray, mTabsBar, mWebXRInterstitial));
+
+        // Build-version label shown on the skybox floor (only visible when looking straight down).
+        mVersionLabel = new VersionLabelWidget(this);
+        mVersionLabel.setText(getVersionLabelText());
+        mVersionLabel.show(UIWidget.CLEAR_FOCUS);
 
         // Create the platform plugin after widgets are created to be extra safe.
         mPlatformPlugin = createPlatformPlugin(this);
@@ -1776,6 +1783,19 @@ public class VRBrowserActivity extends PlatformActivity implements WidgetManager
     public void addWidgets(final Iterable<? extends Widget> aWidgets) {
         for (Widget widget : aWidgets) {
             addWidget(widget);
+        }
+    }
+
+    // "<versionName> (<versionCode>)" as users see it. Read from PackageInfo rather than
+    // BuildConfig so release builds pick up the flavor's versionNameOverride (e.g. "1.2.6").
+    private String getVersionLabelText() {
+        try {
+            android.content.pm.PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long versionCode = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                    ? pInfo.getLongVersionCode() : pInfo.versionCode;
+            return pInfo.versionName + " (" + versionCode + ")";
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")";
         }
     }
 
