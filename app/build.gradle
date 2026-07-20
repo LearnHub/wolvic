@@ -102,7 +102,7 @@ def isWebKitAvailable = {
 
 // Version names for Gecko and Chromium releases.
 def GECKO_RELEASE_VERSION_NAME = '1.8.1'
-def CHROMIUM_RELEASE_VERSION_NAME = '1.2.5'
+def CHROMIUM_RELEASE_VERSION_NAME = '1.2.6'
 
 android {
     namespace 'com.igalia.wolvic'
@@ -176,12 +176,26 @@ android {
         jvmTarget = '1.8'
     }
 
+    signingConfigs {
+        avnRelease {
+            if (project.hasProperty('avn.store.file')) {
+                storeFile file(project.property('avn.store.file'))
+                storePassword project.property('avn.store.password')
+                keyAlias project.findProperty('avn.key.alias') ?: 'learnpad'
+                keyPassword project.property('avn.key.password')
+                enableV1Signing true
+                enableV2Signing true
+            }
+        }
+    }
+
     buildTypes {
         release {
             //minifyEnabled true
             //shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig getUseDebugSigningOnRelease() ? debug.signingConfig : release.signingConfig
+            signingConfig getUseDebugSigningOnRelease() ? debug.signingConfig
+                    : (project.hasProperty('avn.store.file') ? signingConfigs.avnRelease : release.signingConfig)
             buildConfigField "String", "MK_API_KEY", "\"${getMKApiKey()}\""
         }
         debug {
